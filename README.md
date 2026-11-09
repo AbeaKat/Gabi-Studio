@@ -1,10 +1,12 @@
 # Sistema SaaS Multi-Nivel de Inventario y Finanzas (Back-Office ERP Ligero)
 
 ## 1. Descripción del Proyecto
-Plataforma web SaaS multi-empresa (Multi-Tenant) de control interno de inventario, costeo y rentabilidad automática, inspirada en la fluidez visual de **ClickUp**. 
+Plataforma web SaaS multi-empresa (Multi-Tenant) de control interno de inventario, costeo por lote y rentabilidad automática, inspirada en la fluidez visual de **ClickUp** y adaptada a la realidad comercial de **Nicaragua (Bimoneda nativa C$ / USD)**.
+- **100% Agnóstico al Rubro:** Diseñado para adaptarse a cualquier tipo de comercio (autopartes, tecnología, ferretería, tiendas, distribuidoras, importadores).
 - **NO es un e-commerce público ni usa pasarelas de pago.**
-- El flujo inicia en una **Landing Page informativa** con botón de contacto comercial vía WhatsApp (`wa.me`) y acceso al **Login**.
-- Al iniciar sesión, el sistema detecta automáticamente a qué **Empresa (`tenant_id`)**, **Nivel de Plan (`tier_1`, `tier_2`, `tier_3`)** y **Rol (`owner`, `seller`, `global_admin`)** pertenece el usuario, renderizando únicamente los módulos y columnas permitidos.
+- **Confidencialidad Estricta:** Ningún dato real de clientes piloto o empresas particulares debe aparecer jamás en la Landing Page pública, componentes de demostración ni archivos estáticos del frontend.
+- El flujo inicia en una **Landing Page informativa** con propuesta comercial universal, botón de contacto comercial vía WhatsApp (`wa.me`) y acceso al **Login**.
+- Al iniciar sesión, el sistema detecta automáticamente a qué **Empresa (`tenant_id`)**, **Nivel de Plan (`tier_1`, `tier_2`, `tier_3`)** y **Rol (`owner`, `seller`)** pertenece el usuario, renderizando únicamente los módulos y columnas permitidos.
 
 ## 2. Stack Tecnológico (Optimizado para Costo $0 en Lanzamiento)
 - **Frontend:** React 18 + Vite + TypeScript.
@@ -23,7 +25,7 @@ Plataforma web SaaS multi-empresa (Multi-Tenant) de control interno de inventari
    - Cada empresa define su tasa de cambio global vigente (ej. `36.62`). El sistema calcula equivalencias en tiempo real y permite definir un `precio_final_nio` redondeado comercialmente.
 4. **Registro Dual de Ventas (Sin Cierres de Caja Manuales):**
    - Como los precios ya viven en el sistema, las ventas se registran por dos vías:
-     - **Venta en Vivo (1 a 1):** Buscador rápido para dar de baja una pieza al instante (con opción de aplicar promoción/descuento en Nivel 2 y 3).
+     - **Venta en Vivo (1 a 1):** Buscador rápido para dar de baja una pieza al instante.
      - **Cierre Diario (Masivo o Checklist):** Subida de archivo Excel/CSV con códigos vendidos en el día o selección múltiple rápida.
 
 ## 4. Estructura de los 3 Niveles y Perfiles (Licenciamiento)

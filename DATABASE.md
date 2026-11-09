@@ -5,7 +5,7 @@ El sistema aísla los datos mediante `tenant_id` y aplica Row Level Security (RL
 
 ### Tabla: `tenants` (Empresas Clientes)
 - `id` (uuid, PK)
-- `name` (text) — Ej. "Stella & Georgina"
+- `name` (text) — Ej. "Comercial del Norte"
 - `plan_tier` (int) — `1` (Esencial), `2` (Crecimiento), `3` (ERP Completo)
 - `exchange_rate_nio` (numeric) — Ej. `36.62`
 - `max_owner_profiles` (int) — Por defecto `1`
@@ -23,10 +23,10 @@ El sistema aísla los datos mediante `tenant_id` y aplica Row Level Security (RL
 
 ## 2. Catálogo, Lotes y Auditoría de Precios
 
-### Tabla: `batches` (Colecciones o Lotes de Importación)
+### Tabla: `batches` (Categorías o Lotes de Importación)
 - `id` (uuid, PK)
 - `tenant_id` (uuid, FK)
-- `name` (text) — Ej. "Línea Wayuu", "Inventario Georgina 4"
+- `name` (text) — Ej. "Repuestos Freno Octubre", "Lote Electrónica"
 - `shipping_cost_usd` (numeric, default 0) — Nivel 2+
 - `amazon_fee_usd` (numeric, default 0) — Nivel 2+
 - `dhl_tax_usd` (numeric, default 0) — Nivel 2+
@@ -36,7 +36,7 @@ El sistema aísla los datos mediante `tenant_id` y aplica Row Level Security (RL
 - `id` (uuid, PK)
 - `tenant_id` (uuid, FK)
 - `batch_id` (uuid, FK a `batches.id`)
-- `sku` (text) — Ej. "AR02148" (Único por `tenant_id`)
+- `sku` (text) — Ej. "REP-402" (Único por `tenant_id`)
 - `name` (text, opcional)
 - `stock_current` (int, default 1)
 - `base_cost_usd` (numeric) — Costo base unitario

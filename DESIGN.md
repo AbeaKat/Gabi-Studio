@@ -1,7 +1,7 @@
 # Sistema de Diseño UI/UX: "Nacre & Coral" (Estilo ClickUp)
 
 ## 1. Filosofía Visual
-Una interfaz luminosa, fresca, moderna y acogedora que combina fondos **nacarados/perla** con acentos en **coral cálido** y **pizarra profundo (slate)** para la tipografía técnica. Es atractiva para un público mayoritariamente femenino en el sector retail/joyería/moda, pero mantiene la sobriedad geométrica y neutralidad de un software financiero profesional para cualquier dueño de negocio.
+Una interfaz luminosa, fresca, moderna y versátil que combina fondos **nacarados/perla** con acentos en **coral cálido** y **pizarra profundo (slate)** para la tipografía numérica. Mantiene la neutralidad y potencia de un ERP moderno (como ClickUp o Linear) para que cualquier dueño de negocio —desde una importadora de repuestos hasta una tienda departamental o distribuidora— sienta el sistema propio, ágil y profesional.
 
 ## 2. Paleta de Colores (Configuración para `tailwind.config.js`)
 
@@ -30,12 +30,15 @@ Una interfaz luminosa, fresca, moderna y acogedora que combina fondos **nacarado
 - **Títulos y UI (`font-sans`):** `Plus Jakarta Sans` o `Inter` (limpia, redondeada y moderna).
 - **Números, Códigos SKU y Monedas (`font-mono`):** `JetBrains Mono` o `tabular-nums` en `Inter` para que todas las cifras en las tablas financieras alineen exactamente punto con punto.
 
-## 4. Componentes Clave de la Interfaz
+## 4. Componentes Clave de la Interfaz y Reglas de Contenido
 1. **Landing Page Pública (`/`):**
-   - Hero section con estética nacarada, previsualización interactiva de las tablas tipo ClickUp, comparativa clara de los **3 Niveles**, botón flotante y CTA **"Contáctanos por WhatsApp"** para contratar, y botón **"Iniciar Sesión"** en la esquina superior derecha.
+   - Hero section con propuesta comercial universal para **Nicaragua (Bimoneda C$ / USD)**, sin encasillar en moda o joyería.
+   - Previsualización interactiva con datos **100% ficticios multi-rubro** (ej. Autopartes `REP-402`, Electrónica `TEC-109`, Retail `ACC-205`) — **Cero datos confidenciales de clientes reales**.
+   - Tarjetas comparativas de los **3 Niveles** y explicación de perfiles adicionales.
+   - Botón flotante y CTA **"Contáctanos por WhatsApp"** para contratación comercial, y botón **"Iniciar Sesión"** en la esquina superior derecha.
 2. **Vistas estilo ClickUp (`/app/inventory`):**
    - Cabecera compacta con conmutador de vistas (`Vista Tabla`, `Vista Lotes`, `Historial Precios`), buscador instantáneo por SKU y botón primario coral `+ Registrar Venta / Cierre`.
-   - Agrupación por Colección/Lote con cabeceras colapsables que muestran el resumen financiero del grupo en la misma barra.
-   - Edición en línea (Inline Editing): Al hacer clic en una celda de precio o stock, se edita directamente sin abrir modales pesados.
+   - Agrupación por Categoría/Lote con cabeceras colapsables que resumen la información financiera del grupo.
+   - Edición en línea (Inline Editing): Al hacer clic en una celda de precio o stock, se edita directamente sin modales pesados.
 3. **Indicador de Módulos Bloqueados (Upsell sutil):**
-   - Las funciones de Nivel 2 o 3 para un usuario de Nivel 1 se muestran con un badge nacarado/coral `Nivel 2` o `Nivel 3` y un ícono de candado elegante que, al hacer clic, abre un modal explicando el beneficio y un botón directo a WhatsApp para mejorar su plan o comprar perfiles extra.
+   - Las funciones de Nivel 2 o 3 para un usuario de Nivel 1 se muestran con un badge nacarado/coral `Nivel 2` o `Nivel 3` y un ícono de candado elegante que abre un modal de mejora de plan.

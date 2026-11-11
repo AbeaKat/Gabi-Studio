@@ -69,7 +69,7 @@ export const AppLayout: React.FC = () => {
 
   const handleWhatsAppUpgrade = () => {
     const text = encodeURIComponent(
-      `Hola Gabi Studio! Mi empresa ${tenant?.name || ''} desea consultar la actualización al Nivel ${lockedModalTier || 2}.`
+      `Hola Gabi Studio! Mi empresa ${tenant?.name || 'Mi Empresa Demo'} desea consultar la actualización al Nivel ${lockedModalTier || 2}.`
     );
     window.open(`https://wa.me/50588888888?text=${text}`, '_blank');
     setLockedModalTier(null);
@@ -102,11 +102,11 @@ export const AppLayout: React.FC = () => {
         <div className="p-4 border-b border-nacre-200/80 bg-white/30">
           <div className="flex items-center space-x-2.5">
             <div className="w-8 h-8 rounded-lg bg-coral-50 border border-coral-200 flex items-center justify-center text-coral-600 shrink-0 font-bold text-xs">
-              {tenant?.name?.charAt(0) || 'S'}
+              {(tenant?.name || 'Mi Empresa Demo').charAt(0).toUpperCase()}
             </div>
             <div className="overflow-hidden">
-              <p className="text-xs font-bold text-deepSlate-900 truncate" title={tenant?.name}>
-                {tenant?.name || 'Stella & Georgina'}
+              <p className="text-xs font-bold text-deepSlate-900 truncate" title={tenant?.name || 'Mi Empresa Demo'}>
+                {tenant?.name || 'Mi Empresa Demo'}
               </p>
               <div className="flex items-center space-x-1.5 mt-0.5">
                 <span
@@ -352,7 +352,7 @@ export const AppLayout: React.FC = () => {
             <div className="flex items-center space-x-2.5">
               <Building2 className="w-4 h-4 text-coral-500 hidden sm:block" />
               <span className="font-extrabold text-sm sm:text-base text-deepSlate-900 truncate">
-                {tenant?.name || 'Stella & Georgina'}
+                {tenant?.name || 'Mi Empresa Demo'}
               </span>
               <span
                 className={`hidden sm:inline-flex items-center text-[11px] font-bold px-2.5 py-0.5 rounded-full ${

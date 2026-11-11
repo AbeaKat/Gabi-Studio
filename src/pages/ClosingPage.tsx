@@ -15,10 +15,15 @@ import {
   Sparkles,
   History,
   Coins,
-  TrendingUp
+  TrendingUp,
+  Banknote,
+  Landmark,
+  CreditCard,
+  Clock,
+  Calculator
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Product, Batch, SalesHeader, SalesItem } from '../types';
+import { Product, Batch, SalesHeader, SalesItem, PaymentMethod } from '../types';
 import {
   getStoredProducts,
   saveStoredProducts,
@@ -29,7 +34,11 @@ import {
   saveStoredSalesItems,
   TENANT_STELLA_ID,
 } from '../data/realInventoryData';
-import { QuickSaleModal } from '../components/sales/QuickSaleModal';
+import {
+  QuickSaleModal,
+  PAYMENT_METHOD_OPTIONS,
+  getPaymentMethodLabel,
+} from '../components/sales/QuickSaleModal';
 import { supabase } from '../lib/supabase';
 
 interface PreviewClosingRow {
@@ -42,7 +51,8 @@ interface PreviewClosingRow {
 }
 
 export const ClosingPage: React.FC = () => {
-  const { tenant, planTier, role } = useAuth();
+  const { tenant, planTier, role, setSimulatedTier } = useAuth();
+  const businessName = tenant?.name || 'Mi Empresa Demo';
   const exchangeRate = Number(tenant?.exchange_rate_nio || 36.62);
 
   const [activeTab, setActiveTab] = useState<'excel' | 'manual' | 'history'>('manual');
@@ -54,9 +64,14 @@ export const ClosingPage: React.FC = () => {
   // Quick Sale Modal
   const [isQuickSaleOpen, setIsQuickSaleOpen] = useState(false);
 
+  // Cash Drawer Reconciliation Calculator State (Cuadre de Efectivo en Gaveta)
+  const [countedCashNioInput, setCountedCashNioInput] = useState<string>('');
+  const [countedCashUsdInput, setCountedCashUsdInput] = useState<string>('');
+
   // Tab 1: Excel/CSV Closing State
   const [excelRows, setExcelRows] = useState<PreviewClosingRow[]>([]);
   const [excelFileName, setExcelFileName] = useState<string | null>(null);
+  const [excelPaymentMethod, setExcelPaymentMethod] = useState<PaymentMethod>('cash_nio');
   const [excelSuccessMsg, setExcelSuccessMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -65,6 +80,7 @@ export const ClosingPage: React.FC = () => {
   const [batchFilter, setBatchFilter] = useState('');
   const [selectedQtyMap, setSelectedQtyMap] = useState<Record<string, number>>({});
   const [selectedDiscountMap, setSelectedDiscountMap] = useState<Record<string, number>>({});
+  const [manualPaymentMethod, setManualPaymentMethod] = useState<PaymentMethod>('cash_nio');
   const [closingNotes, setClosingNotes] = useState('');
   const [manualSuccessMsg, setManualSuccessMsg] = useState<string | null>(null);
 
@@ -170,7 +186,8 @@ export const ClosingPage: React.FC = () => {
 
   const handleLoadSampleExcelClosing = () => {
     setExcelSuccessMsg(null);
-    setExcelFileName('Cierre_Diario_Stella_Georgina_Demo.xlsx');
+    const safeTenantSlug = businessName.replace(/[^a-zA-Z0-9_-]/g, '_');
+    setExcelFileName(`Cierre_Diario_${safeTenantSlug}_Demo.xlsx`);
     const available = products.filter((p) => p.stock_current > 0).slice(0, 5);
     const sampleRaw = available.map((p, i) => ({
       Codigo: p.sku,
@@ -182,14 +199,15 @@ export const ClosingPage: React.FC = () => {
 
   const handleDownloadTemplate = () => {
     const sample = [
-      { Codigo: 'Wayuu Rojo', Cantidad: 1, Descuento_Cordobas: 0 },
-      { Codigo: 'AR-297-T51', Cantidad: 1, Descuento_Cordobas: 0 },
-      { Codigo: 'AN02107', Cantidad: 1, Descuento_Cordobas: 20 },
+      { Codigo: 'REP-402', Cantidad: 1, Descuento_Cordobas: 0 },
+      { Codigo: 'TEC-109', Cantidad: 1, Descuento_Cordobas: 0 },
+      { Codigo: 'FER-033', Cantidad: 1, Descuento_Cordobas: 20 },
     ];
     const ws = XLSX.utils.json_to_sheet(sample);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Cierre_Del_Dia');
-    XLSX.writeFile(wb, 'Plantilla_Cierre_Diario_GabiStudio.xlsx');
+    const safeTenantSlug = businessName.replace(/[^a-zA-Z0-9_-]/g, '_');
+    XLSX.writeFile(wb, `Plantilla_Cierre_Diario_${safeTenantSlug}.xlsx`);
   };
 
   const handleConfirmExcelClosing = async () => {
@@ -199,18 +217,9 @@ export const ClosingPage: React.FC = () => {
     const nowIso = new Date().toISOString();
     const headerId = `sale-hdr-${Date.now()}`;
 
-    const newHeader: SalesHeader = {
-      id: headerId,
-      tenant_id: tenant?.id || TENANT_STELLA_ID,
-      entry_mode: 'daily_closing_excel',
-      sale_date: nowIso.slice(0, 10),
-      promo_tag: 'Cierre Excel',
-      notes: `Cierre diario por archivo (${excelFileName || 'Excel'}) — ${valid.length} códigos`,
-      created_at: nowIso,
-    };
-
     const newItems: SalesItem[] = [];
     const currentProds = [...products];
+    let totalHeaderNio = 0;
 
     valid.forEach((row, idx) => {
       const p = row.product!;
@@ -221,6 +230,10 @@ export const ClosingPage: React.FC = () => {
       const finalNio = Math.max(0, listPriceNio - discount);
       const finalUsd = discount > 0 ? Math.round((finalNio / exchangeRate) * 100) / 100 : listPriceUsd;
       const profitUsd = Math.round((finalUsd - unitCost) * row.quantity * 100) / 100;
+      const lineTotalNio = finalNio * row.quantity;
+      totalHeaderNio += lineTotalNio;
+
+      const isCredit = planTier >= 2 && excelPaymentMethod === 'credit_layaway';
 
       newItems.push({
         id: `sale-itm-${Date.now()}-${idx}`,
@@ -239,6 +252,12 @@ export const ClosingPage: React.FC = () => {
         final_unit_price_usd: finalUsd,
         exchange_rate_snapshot: exchangeRate,
         net_profit_usd: profitUsd,
+        payment_method: excelPaymentMethod,
+        customer_name: null,
+        customer_phone: null,
+        amount_paid_nio: isCredit ? 0 : lineTotalNio,
+        balance_due_nio: isCredit ? lineTotalNio : 0,
+        payment_status: isCredit ? 'pending' : 'paid',
         created_at: nowIso,
       });
 
@@ -251,6 +270,23 @@ export const ClosingPage: React.FC = () => {
         };
       }
     });
+
+    const isHeaderCredit = planTier >= 2 && excelPaymentMethod === 'credit_layaway';
+    const newHeader: SalesHeader = {
+      id: headerId,
+      tenant_id: tenant?.id || TENANT_STELLA_ID,
+      entry_mode: 'daily_closing_excel',
+      sale_date: nowIso.slice(0, 10),
+      payment_method: excelPaymentMethod,
+      customer_name: null,
+      customer_phone: null,
+      amount_paid_nio: isHeaderCredit ? 0 : totalHeaderNio,
+      balance_due_nio: isHeaderCredit ? totalHeaderNio : 0,
+      payment_status: isHeaderCredit ? 'pending' : 'paid',
+      promo_tag: 'Cierre Excel',
+      notes: `Cierre diario por archivo (${excelFileName || 'Excel'}) — ${valid.length} códigos`,
+      created_at: nowIso,
+    };
 
     saveStoredProducts(currentProds);
     saveStoredSalesHeaders([newHeader, ...salesHeaders]);
@@ -267,7 +303,7 @@ export const ClosingPage: React.FC = () => {
     setExcelRows([]);
     setExcelFileName(null);
     setExcelSuccessMsg(
-      `¡Cierre Excel procesado! Se descontaron ${valid.reduce((a, b) => a + b.quantity, 0)} piezas y se congelaron sus snapshots financieros.`
+      `¡Cierre Excel procesado! Se descontaron ${valid.reduce((a, b) => a + b.quantity, 0)} piezas (${getPaymentMethodLabel(excelPaymentMethod)}) y se congelaron sus snapshots financieros.`
     );
   };
 
@@ -320,12 +356,19 @@ export const ClosingPage: React.FC = () => {
 
     const nowIso = new Date().toISOString();
     const headerId = `sale-hdr-${Date.now()}`;
+    const isCredit = planTier >= 2 && manualPaymentMethod === 'credit_layaway';
 
     const newHeader: SalesHeader = {
       id: headerId,
       tenant_id: tenant?.id || TENANT_STELLA_ID,
       entry_mode: 'daily_closing_manual',
       sale_date: nowIso.slice(0, 10),
+      payment_method: manualPaymentMethod,
+      customer_name: null,
+      customer_phone: null,
+      amount_paid_nio: isCredit ? 0 : manualSummary.revenueNio,
+      balance_due_nio: isCredit ? manualSummary.revenueNio : 0,
+      payment_status: isCredit ? 'pending' : 'paid',
       promo_tag: 'Checklist Diario',
       notes: closingNotes.trim() || `Cierre manual rápido (${manualSummary.units} piezas)`,
       created_at: nowIso,
@@ -347,6 +390,7 @@ export const ClosingPage: React.FC = () => {
       const finalNio = Math.max(0, listPriceNio - discount);
       const finalUsd = discount > 0 ? Math.round((finalNio / exchangeRate) * 100) / 100 : listPriceUsd;
       const profitUsd = Math.round((finalUsd - unitCost) * qty * 100) / 100;
+      const lineTotalNio = finalNio * qty;
 
       newItems.push({
         id: `sale-itm-${Date.now()}-${idx}`,
@@ -365,6 +409,12 @@ export const ClosingPage: React.FC = () => {
         final_unit_price_usd: finalUsd,
         exchange_rate_snapshot: exchangeRate,
         net_profit_usd: profitUsd,
+        payment_method: manualPaymentMethod,
+        customer_name: null,
+        customer_phone: null,
+        amount_paid_nio: isCredit ? 0 : lineTotalNio,
+        balance_due_nio: isCredit ? lineTotalNio : 0,
+        payment_status: isCredit ? 'pending' : 'paid',
         created_at: nowIso,
       });
 
@@ -387,15 +437,67 @@ export const ClosingPage: React.FC = () => {
     setClosingNotes('');
     loadAll();
     setManualSuccessMsg(
-      `¡Cierre del día guardado! Se registraron ${newItems.length} referencias con sus snapshots financieros inmutables.`
+      `¡Cierre del día guardado! Se registraron ${newItems.length} referencias (${getPaymentMethodLabel(manualPaymentMethod)}) con sus snapshots financieros inmutables.`
     );
   };
 
-  // Totals from recorded sales
+  // ==========================================================================
+  // TOTALS & CASH DRAWER RECONCILIATION (ARQUEO DE CAJA POR MÉTODO DE PAGO)
+  // ==========================================================================
   const totalSoldUnits = salesItems.reduce((acc, i) => acc + i.quantity, 0);
   const totalRevenueNio = salesItems.reduce((acc, i) => acc + i.final_unit_price_nio * i.quantity, 0);
   const totalRevenueUsd = salesItems.reduce((acc, i) => acc + i.final_unit_price_usd * i.quantity, 0);
   const totalProfitUsd = salesItems.reduce((acc, i) => acc + i.net_profit_usd, 0);
+
+  const arqueo = salesItems.reduce(
+    (acc, item) => {
+      const hdr = salesHeaders.find((h) => h.id === item.sale_header_id);
+      const method: PaymentMethod = item.payment_method || hdr?.payment_method || 'cash_nio';
+      const lineTotalNio = item.final_unit_price_nio * item.quantity;
+      const lineTotalUsd = item.final_unit_price_usd * item.quantity;
+
+      if (method === 'cash_nio') {
+        acc.cashNio += lineTotalNio;
+      } else if (method === 'cash_usd') {
+        acc.cashUsd += lineTotalUsd;
+        acc.cashUsdInNio += lineTotalNio;
+      } else if (method === 'transfer_bac') {
+        acc.bacNio += lineTotalNio;
+      } else if (method === 'transfer_lafise') {
+        acc.lafiseNio += lineTotalNio;
+      } else if (method === 'transfer_banpro') {
+        acc.banproNio += lineTotalNio;
+      } else if (method === 'pos_card') {
+        acc.posNio += lineTotalNio;
+      } else if (method === 'credit_layaway') {
+        const paidNio = item.amount_paid_nio ?? 0;
+        const dueNio = item.balance_due_nio ?? Math.max(0, lineTotalNio - paidNio);
+        acc.cashNio += paidNio;
+        acc.creditDueNio += dueNio;
+      }
+      return acc;
+    },
+    {
+      cashNio: 0,
+      cashUsd: 0,
+      cashUsdInNio: 0,
+      bacNio: 0,
+      lafiseNio: 0,
+      banproNio: 0,
+      posNio: 0,
+      creditDueNio: 0,
+    }
+  );
+
+  const totalBankTransfersNio = arqueo.bacNio + arqueo.lafiseNio + arqueo.banproNio;
+  const expectedDrawerTotalNio = arqueo.cashNio + arqueo.cashUsdInNio;
+
+  const hasCountedInput = countedCashNioInput.trim() !== '' || countedCashUsdInput.trim() !== '';
+  const parsedCountedNio = Math.max(0, parseFloat(countedCashNioInput) || 0);
+  const parsedCountedUsd = Math.max(0, parseFloat(countedCashUsdInput) || 0);
+  const totalCountedInNio = parsedCountedNio + parsedCountedUsd * exchangeRate;
+  const drawerDiffNio = totalCountedInNio - expectedDrawerTotalNio;
+  const isExactMatch = hasCountedInput && Math.abs(drawerDiffNio) < 0.5;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">
@@ -412,7 +514,7 @@ export const ClosingPage: React.FC = () => {
             </span>
           </div>
           <p className="text-xs sm:text-sm text-deepSlate-500 mt-1">
-            Registra ventas individuales en vivo o procesa el cierre del día mediante archivo Excel/CSV o checklist rápido.
+            Registra ventas individuales con recibo WhatsApp o procesa el cierre diario y arqueo de caja de {businessName}.
           </p>
         </div>
 
@@ -498,6 +600,286 @@ export const ClosingPage: React.FC = () => {
         )}
       </div>
 
+      {/* ==================================================================== */}
+      {/* ARQUEO DE CAJA POR MÉTODO DE PAGO & CUADRE DE GAVETA                 */}
+      {/* ==================================================================== */}
+      <div className="bg-white rounded-3xl border border-nacre-200 p-5 sm:p-6 shadow-xs space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-nacre-200 pb-4">
+          <div>
+            <h2 className="text-base sm:text-lg font-extrabold text-deepSlate-900">
+              Arqueo de Caja por Método de Pago
+            </h2>
+            <p className="text-xs text-deepSlate-500">
+              Desglose exacto de las ventas registradas según dónde debe estar el dinero (Gaveta física, Bancos, POS o Apartados).
+            </p>
+          </div>
+          <span className="text-xs font-mono font-bold px-3 py-1 rounded-xl bg-nacre-100 text-deepSlate-700 self-start sm:self-auto">
+            Efectivo Esperado en Gaveta: C$ {expectedDrawerTotalNio.toLocaleString('es-NI', { minimumFractionDigits: 2 })}
+          </span>
+        </div>
+
+        {/* 4 Payment Destination Breakdown Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* 1. Efectivo en Gaveta (C$ y USD) */}
+          <div className="rounded-2xl border border-nacre-200 bg-nacre-50/70 p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-deepSlate-800">
+                Efectivo en Gaveta
+              </span>
+              <Banknote className="w-4 h-4 text-emerald-600" />
+            </div>
+            <div className="font-mono space-y-1">
+              <p className="text-lg font-extrabold text-deepSlate-900">
+                C$ {arqueo.cashNio.toLocaleString('es-NI', { minimumFractionDigits: 2 })}
+              </p>
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-nacre-200">
+                <span className="font-sans text-deepSlate-500">Billetes USD:</span>
+                <span className="font-bold text-emerald-700">
+                  ${arqueo.cashUsd.toFixed(2)} USD (C$ {arqueo.cashUsdInNio.toFixed(0)})
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Dinero en Bancos / Transferencias (BAC, Lafise, Banpro) */}
+          <div className="rounded-2xl border border-nacre-200 bg-nacre-50/70 p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-deepSlate-800">
+                Bancos / Transferencias
+              </span>
+              <Landmark className="w-4 h-4 text-coral-500" />
+            </div>
+            <p className="text-lg font-mono font-extrabold text-coral-600">
+              C$ {totalBankTransfersNio.toLocaleString('es-NI', { minimumFractionDigits: 2 })}
+            </p>
+            <div className="grid grid-cols-3 gap-1 pt-1 border-t border-nacre-200 text-[10px] font-mono text-deepSlate-600">
+              <div>
+                <span className="font-sans font-bold block text-deepSlate-400">BAC</span>
+                <span>C$ {arqueo.bacNio.toFixed(0)}</span>
+              </div>
+              <div>
+                <span className="font-sans font-bold block text-deepSlate-400">Lafise</span>
+                <span>C$ {arqueo.lafiseNio.toFixed(0)}</span>
+              </div>
+              <div>
+                <span className="font-sans font-bold block text-deepSlate-400">Banpro</span>
+                <span>C$ {arqueo.banproNio.toFixed(0)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Tarjeta / POS */}
+          <div className="rounded-2xl border border-nacre-200 bg-nacre-50/70 p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-deepSlate-800">
+                Tarjeta / POS
+              </span>
+              <CreditCard className="w-4 h-4 text-indigo-500" />
+            </div>
+            <p className="text-lg font-mono font-extrabold text-deepSlate-900">
+              C$ {arqueo.posNio.toLocaleString('es-NI', { minimumFractionDigits: 2 })}
+            </p>
+            <div className="flex items-center justify-between text-xs pt-1 border-t border-nacre-200 font-mono">
+              <span className="font-sans text-deepSlate-500">Equivalente USD:</span>
+              <span className="text-deepSlate-700">
+                ${(arqueo.posNio / exchangeRate).toFixed(2)} USD
+              </span>
+            </div>
+          </div>
+
+          {/* 4. Por Cobrar / Apartados (Nivel 2+) */}
+          <div className="rounded-2xl border border-nacre-200 bg-nacre-50/70 p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-deepSlate-800">
+                Por Cobrar / Apartados
+              </span>
+              {planTier >= 2 ? (
+                <Clock className="w-4 h-4 text-amber-600" />
+              ) : (
+                <Lock className="w-4 h-4 text-coral-500" />
+              )}
+            </div>
+            {planTier >= 2 ? (
+              <>
+                <p className="text-lg font-mono font-extrabold text-amber-700">
+                  C$ {arqueo.creditDueNio.toLocaleString('es-NI', { minimumFractionDigits: 2 })}
+                </p>
+                <div className="flex items-center justify-between text-xs pt-1 border-t border-nacre-200 font-mono">
+                  <span className="font-sans text-deepSlate-500">Saldo clientes:</span>
+                  <span className="text-amber-800 font-bold">
+                    ${(arqueo.creditDueNio / exchangeRate).toFixed(2)} USD
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="pt-0.5 space-y-1.5">
+                <span className="inline-flex items-center space-x-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-coral-50 text-coral-600 border border-coral-200">
+                  <Lock className="w-2.5 h-2.5" />
+                  <span>Módulo Nivel 2+</span>
+                </span>
+                <p className="text-[11px] text-deepSlate-500">
+                  Controla abonos y saldos pendientes de clientes.{' '}
+                  <button
+                    type="button"
+                    onClick={() => setSimulatedTier(2)}
+                    className="text-coral-600 font-bold underline"
+                  >
+                    Probar Nivel 2
+                  </button>
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Fast Cash Drawer Reconciliation Calculator (Cuadre de Efectivo en Gaveta) */}
+        <div className="rounded-2xl bg-nacre-50 border border-nacre-200 p-4 sm:p-5">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+            <div className="lg:col-span-4 space-y-1">
+              <div className="flex items-center space-x-2">
+                <Calculator className="w-4 h-4 text-coral-500" />
+                <h3 className="text-xs sm:text-sm font-extrabold text-deepSlate-900">
+                  Calculadora de Cuadre de Efectivo en Gaveta
+                </h3>
+              </div>
+              <p className="text-[11px] text-deepSlate-500">
+                Digita el efectivo físico contado al cerrar para verificar si cuadra contra los{' '}
+                <strong className="font-mono text-deepSlate-800">
+                  C$ {expectedDrawerTotalNio.toFixed(2)}
+                </strong>{' '}
+                esperados en gaveta.
+              </p>
+            </div>
+
+            <div className="lg:col-span-4 grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-deepSlate-600 mb-1">
+                  Efectivo Contado (C$)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="10"
+                  placeholder={`Ej. ${arqueo.cashNio.toFixed(0)}`}
+                  value={countedCashNioInput}
+                  onChange={(e) => setCountedCashNioInput(e.target.value)}
+                  className="w-full px-3 py-2 text-xs font-mono font-bold rounded-xl bg-white border border-nacre-200 focus:outline-none focus:border-coral-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-deepSlate-600 mb-1">
+                  Billetes Contados ($ USD)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder={`Ej. ${arqueo.cashUsd.toFixed(0)}`}
+                  value={countedCashUsdInput}
+                  onChange={(e) => setCountedCashUsdInput(e.target.value)}
+                  className="w-full px-3 py-2 text-xs font-mono font-bold rounded-xl bg-white border border-nacre-200 focus:outline-none focus:border-coral-500"
+                />
+              </div>
+            </div>
+
+            <div className="lg:col-span-4">
+              {!hasCountedInput ? (
+                <div className="p-3 rounded-xl bg-white border border-nacre-200 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="text-deepSlate-500 block">Esperado en Gaveta:</span>
+                    <strong className="font-mono text-sm text-deepSlate-900">
+                      C$ {expectedDrawerTotalNio.toFixed(2)}
+                    </strong>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCountedCashNioInput(arqueo.cashNio.toFixed(2));
+                      setCountedCashUsdInput(arqueo.cashUsd > 0 ? arqueo.cashUsd.toFixed(2) : '0');
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-coral-50 hover:bg-coral-100 text-coral-600 border border-coral-200 transition-colors"
+                  >
+                    Simular Conteo Exacto
+                  </button>
+                </div>
+              ) : isExactMatch ? (
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                    <div>
+                      <span className="font-extrabold text-emerald-900 block">
+                        ¡Gaveta Cuadrada Exacta!
+                      </span>
+                      <span className="font-mono text-[11px] text-emerald-700">
+                        Contado: C$ {totalCountedInNio.toFixed(2)} (Dif: C$ 0.00)
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCountedCashNioInput('');
+                      setCountedCashUsdInput('');
+                    }}
+                    className="text-[11px] font-bold text-emerald-800 underline ml-2"
+                  >
+                    Limpiar
+                  </button>
+                </div>
+              ) : drawerDiffNio > 0 ? (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between text-xs">
+                  <div className="flex items-center space-x-2">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                    <div>
+                      <span className="font-extrabold text-amber-900 block">
+                        Sobrante en Gaveta: +C$ {drawerDiffNio.toFixed(2)}
+                      </span>
+                      <span className="font-mono text-[11px] text-amber-800">
+                        Contado C$ {totalCountedInNio.toFixed(2)} vs Esperado C$ {expectedDrawerTotalNio.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCountedCashNioInput('');
+                      setCountedCashUsdInput('');
+                    }}
+                    className="text-[11px] font-bold text-amber-900 underline ml-2"
+                  >
+                    Limpiar
+                  </button>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-between text-xs">
+                  <div className="flex items-center space-x-2">
+                    <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+                    <div>
+                      <span className="font-extrabold text-rose-900 block">
+                        Faltante en Gaveta: -C$ {Math.abs(drawerDiffNio).toFixed(2)}
+                      </span>
+                      <span className="font-mono text-[11px] text-rose-700">
+                        Contado C$ {totalCountedInNio.toFixed(2)} vs Esperado C$ {expectedDrawerTotalNio.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCountedCashNioInput('');
+                      setCountedCashUsdInput('');
+                    }}
+                    className="text-[11px] font-bold text-rose-800 underline ml-2"
+                  >
+                    Limpiar
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Tabs Switcher */}
       <div className="bg-white rounded-2xl border border-nacre-200 p-1.5 inline-flex flex-wrap gap-1 shadow-2xs">
         <button
@@ -560,7 +942,7 @@ export const ClosingPage: React.FC = () => {
               <Search className="w-4 h-4 text-deepSlate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Buscar SKU vendido hoy (ej. Wayuu, AR-301, AN02144)..."
+                placeholder="Buscar SKU vendido hoy (ej. REP-402, TEC-109, FER-033)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white"
@@ -573,7 +955,7 @@ export const ClosingPage: React.FC = () => {
                 onChange={(e) => setBatchFilter(e.target.value)}
                 className="w-full sm:w-64 px-3 py-2 text-xs font-semibold rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500"
               >
-                <option value="">Todos los Lotes Stella & Georgina</option>
+                <option value="">Todos los Lotes ({businessName})</option>
                 {batches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
@@ -700,7 +1082,7 @@ export const ClosingPage: React.FC = () => {
             </div>
 
             {/* Sticky Confirmation Footer */}
-            <div className="p-4 sm:px-6 bg-nacre-50 border-t border-nacre-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="p-4 sm:px-6 bg-nacre-50 border-t border-nacre-200 flex flex-col lg:flex-row items-center justify-between gap-4">
               <div className="flex flex-wrap items-center gap-4 text-xs">
                 <div>
                   <span className="text-deepSlate-500">Seleccionados: </span>
@@ -722,13 +1104,29 @@ export const ClosingPage: React.FC = () => {
                 )}
               </div>
 
-              <div className="flex items-center space-x-3 w-full sm:w-auto">
+              <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto justify-end">
+                <select
+                  value={manualPaymentMethod}
+                  onChange={(e) => setManualPaymentMethod(e.target.value as PaymentMethod)}
+                  className="px-3 py-2 text-xs font-bold rounded-xl bg-white border border-nacre-200 focus:outline-none focus:border-coral-500"
+                >
+                  {PAYMENT_METHOD_OPTIONS.map((opt) => (
+                    <option
+                      key={opt.id}
+                      value={opt.id}
+                      disabled={opt.requiresTier2 && planTier < 2}
+                    >
+                      {opt.shortLabel} {opt.requiresTier2 && planTier < 2 ? '(Nivel 2)' : ''}
+                    </option>
+                  ))}
+                </select>
+
                 <input
                   type="text"
                   placeholder="Nota opcional del cierre..."
                   value={closingNotes}
                   onChange={(e) => setClosingNotes(e.target.value)}
-                  className="px-3 py-2 text-xs rounded-xl bg-white border border-nacre-200 focus:outline-none focus:border-coral-500 w-full sm:w-56"
+                  className="px-3 py-2 text-xs rounded-xl bg-white border border-nacre-200 focus:outline-none focus:border-coral-500 w-full sm:w-48"
                 />
                 <button
                   type="button"
@@ -763,7 +1161,7 @@ export const ClosingPage: React.FC = () => {
                 Conciliación Masiva de Cierre Diario por Excel / CSV
               </h3>
               <p className="text-xs text-deepSlate-500">
-                Sube una hoja con las columnas <strong>Codigo</strong> y <strong>Cantidad</strong> para cruzar contra el catálogo y guardar los snapshots del día.
+                Sube una hoja con las columnas <strong>Codigo</strong> y <strong>Cantidad</strong> para cruzar contra el catálogo de {businessName} y guardar los snapshots del día.
               </p>
             </div>
             <div className="flex items-center space-x-2">
@@ -772,7 +1170,7 @@ export const ClosingPage: React.FC = () => {
                 onClick={handleLoadSampleExcelClosing}
                 className="px-3.5 py-2 rounded-xl text-xs font-bold bg-coral-50 hover:bg-coral-100 text-coral-700 border border-coral-200 transition-colors"
               >
-                Simular Excel con SKUs Reales
+                Simular Excel con SKUs Activos
               </button>
               <button
                 type="button"
@@ -802,7 +1200,7 @@ export const ClosingPage: React.FC = () => {
                 Haz clic para subir tu archivo Excel/CSV de ventas del día
               </p>
               <p className="text-xs text-deepSlate-500 mt-1">
-                O presiona el botón <strong>"Simular Excel con SKUs Reales"</strong> arriba para probar la previsualización instantánea.
+                O descarga la plantilla con códigos de ejemplo (<code>REP-402</code>, <code>TEC-109</code>, <code>FER-033</code>).
               </p>
             </div>
           ) : (
@@ -884,7 +1282,23 @@ export const ClosingPage: React.FC = () => {
                 </table>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                <select
+                  value={excelPaymentMethod}
+                  onChange={(e) => setExcelPaymentMethod(e.target.value as PaymentMethod)}
+                  className="px-3 py-2.5 text-xs font-bold rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500"
+                >
+                  {PAYMENT_METHOD_OPTIONS.map((opt) => (
+                    <option
+                      key={opt.id}
+                      value={opt.id}
+                      disabled={opt.requiresTier2 && planTier < 2}
+                    >
+                      Método: {opt.shortLabel} {opt.requiresTier2 && planTier < 2 ? '(Nivel 2)' : ''}
+                    </option>
+                  ))}
+                </select>
+
                 <button
                   type="button"
                   onClick={handleConfirmExcelClosing}
@@ -913,7 +1327,7 @@ export const ClosingPage: React.FC = () => {
                 Bitácora de Salidas con Snapshots Financieros Congelados
               </h3>
               <p className="text-xs text-deepSlate-500">
-                Aunque cambies el costo o el precio en el catálogo hoy, estas ventas históricas conservan su costo y tasa exactos del momento en que ocurrieron.
+                Aunque cambies el costo o el precio en el catálogo hoy, estas ventas históricas conservan su costo, método de pago y tasa exactos del momento en que ocurrieron.
               </p>
             </div>
           </div>
@@ -924,7 +1338,8 @@ export const ClosingPage: React.FC = () => {
                 <tr>
                   <th className="py-3 px-4">Fecha / Modo</th>
                   <th className="py-3 px-4">SKU Snapshot</th>
-                  <th className="py-3 px-4">Producto</th>
+                  <th className="py-3 px-4">Producto / Cliente</th>
+                  <th className="py-3 px-4">Método de Pago</th>
                   <th className="py-3 px-4 text-center">Cant.</th>
                   {role !== 'seller' && <th className="py-3 px-4 text-right">Costo Congelado</th>}
                   <th className="py-3 px-4 text-right">Descuento</th>
@@ -942,6 +1357,8 @@ export const ClosingPage: React.FC = () => {
                       : hdr?.entry_mode === 'daily_closing_excel'
                       ? 'Cierre Excel'
                       : 'Checklist';
+                  const method = item.payment_method || hdr?.payment_method || 'cash_nio';
+                  const customer = item.customer_name || hdr?.customer_name;
 
                   return (
                     <tr key={item.id} className="hover:bg-nacre-50/60">
@@ -955,7 +1372,17 @@ export const ClosingPage: React.FC = () => {
                       </td>
                       <td className="py-3 px-4 font-bold text-deepSlate-900">{item.sku_snapshot}</td>
                       <td className="py-3 px-4 font-sans text-deepSlate-700">
-                        {item.product_name_snapshot || item.sku_snapshot}
+                        <span className="block">{item.product_name_snapshot || item.sku_snapshot}</span>
+                        {customer && (
+                          <span className="text-[10px] text-deepSlate-400 font-semibold">
+                            Cliente: {customer}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 font-sans">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-coral-50 text-coral-700 border border-coral-200">
+                          {getPaymentMethodLabel(method)}
+                        </span>
                       </td>
                       <td className="py-3 px-4 text-center font-bold">{item.quantity}</td>
                       {role !== 'seller' && (
@@ -999,4 +1426,3 @@ export const ClosingPage: React.FC = () => {
     </div>
   );
 };
-

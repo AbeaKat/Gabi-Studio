@@ -93,6 +93,13 @@ CREATE TABLE IF NOT EXISTS public.sales_headers (
     created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     entry_mode TEXT NOT NULL CHECK (entry_mode IN ('single_sale', 'daily_closing_excel', 'daily_closing_manual')),
     sale_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    payment_method TEXT NOT NULL DEFAULT 'cash_nio' CHECK (payment_method IN ('cash_nio', 'cash_usd', 'transfer_bac', 'transfer_lafise', 'transfer_banpro', 'pos_card', 'credit_layaway')),
+    customer_name TEXT,
+    customer_phone TEXT,
+    amount_paid_nio NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    balance_due_nio NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    payment_status TEXT NOT NULL DEFAULT 'paid' CHECK (payment_status IN ('paid', 'partial', 'pending')),
+    due_date DATE,
     promo_tag TEXT,
     notes TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -114,6 +121,13 @@ CREATE TABLE IF NOT EXISTS public.sales_items (
     final_unit_price_usd NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
     exchange_rate_snapshot NUMERIC(10, 4) NOT NULL DEFAULT 36.6200,
     net_profit_usd NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    payment_method TEXT NOT NULL DEFAULT 'cash_nio' CHECK (payment_method IN ('cash_nio', 'cash_usd', 'transfer_bac', 'transfer_lafise', 'transfer_banpro', 'pos_card', 'credit_layaway')),
+    customer_name TEXT,
+    customer_phone TEXT,
+    amount_paid_nio NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    balance_due_nio NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    payment_status TEXT NOT NULL DEFAULT 'paid' CHECK (payment_status IN ('paid', 'partial', 'pending')),
+    due_date DATE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

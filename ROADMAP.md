@@ -47,3 +47,18 @@ Instrucciones para el Agente (Antigravity): A medida que completes una tarea, ma
 > - Se implementó [`BatchesPage.tsx`](src/pages/BatchesPage.tsx) (`/app/batches`) con prorrateo equitativo por ítem o proporcional al costo, actualizando `landed_cost_usd` y registrando auditoría automática en `price_history`.
 > - Se implementó [`AuditPage.tsx`](src/pages/AuditPage.tsx) (`/app/audit`) para Nivel 3 con registro de Kardex (mermas/averías, salidas a consignación y conteo físico) y tabla global auditable de `price_history`.
 > - Se implementó [`ProfilesPage.tsx`](src/pages/ProfilesPage.tsx) (`/app/team`) con validación de cupos (`max_owner_profiles`, `max_seller_profiles`, `extra_paid_profiles`) y conmutador instantáneo de los 4 perfiles de prueba por nivel.
+
+## Sprint 5: Arqueo de Caja, Cobranza por WhatsApp, Punto de Equilibrio e Inteligencia ABC ($0 Costo Servidor)
+- [x] **Sanitización Multi-Tenant:** Reemplazo de nombres estáticos de clientes piloto en UI y plantillas descargables por el nombre dinámico del tenant (`tenant?.name || 'Mi Empresa Demo'`) y SKUs genéricos (`REP-402`, `TEC-109`, `FER-033`).
+- [x] **Nivel 1 — Métodos de Pago, Recibo Digital WhatsApp y Arqueo de Caja:**
+  - [x] Soporte de `PaymentMethod` (`cash_nio`, `cash_usd`, `transfer_bac`, `transfer_lafise`, `transfer_banpro`, `pos_card`, `credit_layaway`) en `SalesHeader`, `SalesItem` y `supabase/schema.sql`.
+  - [x] Generador de **Recibo Digital** dentro de `QuickSaleModal.tsx` con envío directo al WhatsApp del cliente (`https://wa.me/`) sin APIs de pago.
+  - [x] Panel de **Arqueo de Caja por Método de Pago** y **Calculadora de Cuadre de Efectivo en Gaveta** en `ClosingPage.tsx`.
+- [x] **Nivel 2 — Cartera por Cobrar (Créditos/Apartados) y Punto de Equilibrio Mensual:**
+  - [x] Registro de ventas al crédito/apartado con `Abono Inicial (C$)`, `Fecha Límite de Pago` (`due_date`) y cálculo automático de `balance_due_nio`.
+  - [x] Panel de **Cartera por Cobrar & Apartados Activos** en `FinancePage.tsx` con botón de liquidación/abono en línea y recordatorio de cobro por WhatsApp en 1 clic.
+  - [x] Tarjeta interactiva **Meta de Supervivencia & Punto de Equilibrio Mensual** con semáforo que compara la Ganancia Bruta Real contra Gastos Operativos + Meta de Salario del Dueño.
+- [x] **Nivel 3 — Matriz ABC de Rotación de Inventario y Paquete Contable de 4 Hojas (.xlsx):**
+  - [x] Panel **Inteligencia de Capital: Productos Estrella vs. Capital Estancado (Matriz ABC)** que detecta productos Clase A con alerta de reposición (`stock_current <= 2`) y productos Clase C ("Hueso") con sugerencia automática de liquidación del 15%.
+  - [x] Exportador **Paquete Contable Multihierro (.xlsx)** con 4 pestañas listas para el contador: `1_Resumen_PL`, `2_Detalle_Ventas_COGS`, `3_Gastos_Operativos` y `4_Kardex_y_Mermas`.
+  - [x] Actualización comercial de `TIERS_DATA` en `src/components/PricingCard.tsx`.

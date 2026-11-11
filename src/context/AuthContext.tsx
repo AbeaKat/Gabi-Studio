@@ -29,7 +29,7 @@ interface AuthContextType {
 
 const DEFAULT_DEMO_TENANT: Tenant = {
   id: TENANT_STELLA_ID,
-  name: 'Stella & Georgina Studio',
+  name: 'Mi Empresa Demo',
   plan_tier: 3,
   exchange_rate_nio: DEFAULT_EXCHANGE_RATE,
   max_owner_profiles: 1,
@@ -42,7 +42,7 @@ const DEFAULT_DEMO_TENANT: Tenant = {
 const DEFAULT_DEMO_PROFILE: Profile = {
   id: '00000000-0000-0000-0000-000000000099',
   tenant_id: TENANT_STELLA_ID,
-  full_name: 'Stella & Georgina (Dueña)',
+  full_name: 'Dirección General (Dueño)',
   role: 'global_owner',
   created_at: new Date().toISOString(),
 };

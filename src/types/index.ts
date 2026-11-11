@@ -64,12 +64,21 @@ export interface PriceHistory {
 
 export type SalesEntryMode = 'single_sale' | 'daily_closing_excel' | 'daily_closing_manual';
 
+export type PaymentMethod = 'cash_nio' | 'cash_usd' | 'transfer_bac' | 'transfer_lafise' | 'transfer_banpro' | 'pos_card' | 'credit_layaway';
+
 export interface SalesHeader {
   id: string;
   tenant_id: string;
   created_by?: string | null;
   entry_mode: SalesEntryMode;
   sale_date: string;
+  payment_method: PaymentMethod;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  amount_paid_nio?: number;
+  balance_due_nio?: number;
+  payment_status?: 'paid' | 'partial' | 'pending';
+  due_date?: string | null;
   promo_tag?: string | null;
   notes?: string | null;
   created_at: string;
@@ -92,6 +101,13 @@ export interface SalesItem {
   final_unit_price_usd: number;
   exchange_rate_snapshot: number;
   net_profit_usd: number;
+  payment_method: PaymentMethod;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  amount_paid_nio?: number;
+  balance_due_nio?: number;
+  payment_status?: 'paid' | 'partial' | 'pending';
+  due_date?: string | null;
   created_at: string;
 }
 

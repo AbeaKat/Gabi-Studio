@@ -1,3 +1,6 @@
+import { ThemePaletteId } from '../lib/themes';
+
+export type { ThemePaletteId };
 export type PlanTier = 1 | 2 | 3;
 export type UserRole = 'global_owner' | 'seller';
 
@@ -10,6 +13,9 @@ export interface Tenant {
   max_seller_profiles: number;
   extra_paid_profiles: number;
   is_active: boolean;
+  theme_palette?: ThemePaletteId;
+  onboarding_completed?: boolean;
+  logo_url?: string;
   created_at: string;
 }
 
@@ -17,6 +23,10 @@ export interface Profile {
   id: string;
   tenant_id: string;
   full_name: string;
+  username?: string;
+  email?: string;
+  avatar_url?: string;
+  onboarding_completed?: boolean;
   role: UserRole;
   created_at: string;
 }
@@ -102,6 +112,7 @@ export interface SalesItem {
   exchange_rate_snapshot: number;
   net_profit_usd: number;
   payment_method: PaymentMethod;
+  abono_payment_method?: PaymentMethod;
   customer_name?: string | null;
   customer_phone?: string | null;
   amount_paid_nio?: number;
@@ -151,6 +162,7 @@ export interface TestAccountPreset {
   label: string;
   badge: string;
   email: string;
+  username?: string;
   password: string;
   plan_tier: PlanTier;
   role: UserRole;
@@ -162,5 +174,3 @@ export interface TestAccountPreset {
   description: string;
   highlights: string[];
 }
-
-

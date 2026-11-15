@@ -1,514 +1,429 @@
 import React, { useState } from 'react';
+import { Pencil, History, Trash2, Plus, PackageSearch, Check } from 'lucide-react';
+import { Product, UserRole } from '../../types';
+import { ConfirmDialog } from '../shared/ConfirmDialog';
 import {
-  ChevronDown,
-  Plus,
-  History,
-  Trash2,
-  Lock,
-  Layers
-} from 'lucide-react';
-import { Product, Batch, UserRole } from '../../types';
+  getStockStatus,
+  STOCK_STATUS_UI,
+  fmtNio,
+  fmtUsd,
+  profitPerPiece,
+  round2,
+} from './inventoryHelpers';
 
 interface InventoryTableProps {
-  products: Product[];
-  batches: Batch[];
+  products: Product[]; // ya filtrados y ordenados
+  totalProducts: number; // total sin filtrar
   exchangeRate: number;
   role: UserRole;
-  searchQuery: string;
-  selectedBatchFilter: string;
+  hasActiveFilter: boolean;
+  onClearFilters: () => void;
   onUpdateProduct: (id: string, updates: Partial<Product>, reason?: string) => Promise<void>;
   onDeleteProduct: (id: string) => Promise<void>;
-  onOpenNewProductModal: (batchId?: string) => void;
+  onAddProduct: () => void;
+  onImport: () => void;
   onOpenPriceHistory: (product: Product) => void;
 }
 
-export const InventoryTable: React.FC<InventoryTableProps> = ({
-  products,
-  batches,
-  exchangeRate,
-  role,
-  searchQuery,
-  selectedBatchFilter,
-  onUpdateProduct,
-  onDeleteProduct,
-  onOpenNewProductModal,
-  onOpenPriceHistory,
-}) => {
-  // Collapsed state for batch groups
-  const [collapsedBatches, setCollapsedBatches] = useState<Record<string, boolean>>({});
-  
-  // Inline editing state: { productId, field }
-  const [editingCell, setEditingCell] = useState<{ id: string; field: keyof Product } | null>(null);
-  const [editValue, setEditValue] = useState<string>('');
-  const [recentlySavedId, setRecentlySavedId] = useState<string | null>(null);
+/* ---------- Celda editable en línea ---------- */
+interface InlineNumberProps {
+  display: React.ReactNode;
+  initial: number;
+  label: string;
+  integer?: boolean;
+  prefix?: string;
+  onSave: (value: number) => Promise<void>;
+  strong?: boolean;
+}
 
-  const toggleBatch = (batchId: string) => {
-    setCollapsedBatches((prev) => ({
-      ...prev,
-      [batchId]: !prev[batchId],
-    }));
+const InlineNumber: React.FC<InlineNumberProps> = ({
+  display,
+  initial,
+  label,
+  integer,
+  prefix,
+  onSave,
+  strong,
+}) => {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const start = () => {
+    setValue(String(initial));
+    setError(null);
+    setEditing(true);
   };
 
-  // Filter products by search and batch
-  const filteredProducts = products.filter((p) => {
-    const matchesSearch =
-      p.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.name && p.name.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    const matchesBatch =
-      !selectedBatchFilter ||
-      (selectedBatchFilter === 'unassigned' ? !p.batch_id : p.batch_id === selectedBatchFilter);
-
-    return matchesSearch && matchesBatch;
-  });
-
-  // Group products by batch
-  const groupedProducts: { batch: Batch | null; items: Product[] }[] = [];
-
-  // Add assigned batches
-  batches.forEach((b) => {
-    const items = filteredProducts.filter((p) => p.batch_id === b.id);
-    if (items.length > 0 || !searchQuery) {
-      groupedProducts.push({ batch: b, items });
-    }
-  });
-
-  // Add unassigned products
-  const unassignedItems = filteredProducts.filter((p) => !p.batch_id);
-  if (unassignedItems.length > 0 || (batches.length === 0 && filteredProducts.length > 0)) {
-    groupedProducts.push({ batch: null, items: unassignedItems });
-  }
-
-  const startEditing = (p: Product, field: keyof Product) => {
-    // Seller cannot edit cost
-    if (role === 'seller' && (field === 'base_cost_usd' || field === 'landed_cost_usd')) {
+  const commit = async () => {
+    const num = Number(value.replace(',', '.'));
+    if (value.trim() === '' || isNaN(num)) {
+      setError('Escribe solo números.');
       return;
     }
-    setEditingCell({ id: p.id, field });
-    setEditValue(String(p[field] ?? ''));
-  };
-
-  const handleInlineSave = async (p: Product) => {
-    if (!editingCell) return;
-    const { field } = editingCell;
-    const trimmed = editValue.trim();
-
-    const updates: Partial<Product> = {};
-    let reason = 'Edición en línea';
-
-    if (field === 'sku') {
-      if (trimmed && trimmed.toUpperCase() !== p.sku) {
-        updates.sku = trimmed.toUpperCase();
-      }
-    } else if (field === 'name') {
-      if (trimmed !== (p.name || '')) {
-        updates.name = trimmed;
-      }
-    } else if (field === 'stock_current') {
-      const val = parseInt(trimmed, 10);
-      if (!isNaN(val) && val >= 0 && val !== p.stock_current) {
-        updates.stock_current = val;
-      }
-    } else if (field === 'base_cost_usd' || field === 'landed_cost_usd') {
-      const val = parseFloat(trimmed);
-      if (!isNaN(val) && val >= 0 && val !== p[field]) {
-        updates.base_cost_usd = val;
-        updates.landed_cost_usd = val;
-        reason = 'Ajuste de costo';
-      }
-    } else if (field === 'price_usd') {
-      const val = parseFloat(trimmed);
-      if (!isNaN(val) && val >= 0 && val !== p.price_usd) {
-        updates.price_usd = val;
-        // Auto calculate price_nio with current exchange rate
-        updates.price_nio = Math.round(val * exchangeRate * 100) / 100;
-        reason = 'Actualización de precio USD';
-      }
-    } else if (field === 'price_nio') {
-      const val = parseFloat(trimmed);
-      if (!isNaN(val) && val >= 0 && val !== p.price_nio) {
-        updates.price_nio = val;
-        reason = 'Ajuste manual precio C$';
-      }
+    if (num < 0) {
+      setError('No puede ser negativo.');
+      return;
     }
-
-    setEditingCell(null);
-
-    if (Object.keys(updates).length > 0) {
-      await onUpdateProduct(p.id, updates, reason);
-      setRecentlySavedId(p.id);
-      setTimeout(() => {
-        setRecentlySavedId((current) => (current === p.id ? null : current));
-      }, 1000);
+    if (integer && !Number.isInteger(num)) {
+      setError('Usa un número entero (sin decimales).');
+      return;
+    }
+    setEditing(false);
+    if (num !== initial) {
+      await onSave(num);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
     }
   };
 
-  if (filteredProducts.length === 0) {
+  if (editing) {
     return (
-      <div className="bg-white rounded-3xl border border-nacre-200 p-12 text-center shadow-xs">
-        <div className="w-14 h-14 rounded-2xl bg-coral-50 border border-coral-200 flex items-center justify-center text-coral-500 mx-auto mb-4">
-          <Layers className="w-7 h-7" />
-        </div>
-        <h3 className="text-base font-extrabold text-deepSlate-900">
-          No se encontraron productos en el inventario
-        </h3>
-        <p className="text-xs text-deepSlate-500 mt-1 max-w-sm mx-auto mb-6">
-          {searchQuery
-            ? 'Ningún producto coincide con tu búsqueda. Intenta con otro término.'
-            : 'Tu catálogo está listo. Puedes crear tu primer producto o importar un archivo Excel/CSV.'}
-        </p>
-        <div className="flex items-center justify-center space-x-3">
+      <div className="inline-flex flex-col items-end">
+        <div className="flex items-center gap-1">
+          {prefix && <span className="text-sm font-bold text-deepSlate-500">{prefix}</span>}
+          <input
+            autoFocus
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step={integer ? 1 : 0.01}
+            aria-label={label}
+            value={value}
+            onChange={(e) => {
+              setValue(e.target.value);
+              setError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commit();
+              if (e.key === 'Escape') setEditing(false);
+            }}
+            className="w-24 min-h-[44px] px-2 text-sm font-bold text-right rounded-xl border-2 border-coral-500 bg-white focus:outline-none"
+          />
           <button
-            onClick={() => onOpenNewProductModal()}
-            className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-coral-500 hover:bg-coral-600 shadow-md shadow-coral-500/25 flex items-center space-x-2"
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={commit}
+            className="min-w-[44px] min-h-[44px] rounded-xl bg-coral-500 text-white flex items-center justify-center"
+            aria-label="Guardar"
           >
-            <Plus className="w-4 h-4" />
-            <span>Crear Producto</span>
+            <Check className="w-5 h-5" />
           </button>
         </div>
+        {error && <span className="text-xs text-rose-600 font-semibold mt-1">{error}</span>}
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {groupedProducts.map(({ batch, items }) => {
-        const batchKey = batch ? batch.id : 'unassigned';
-        const isCollapsed = !!collapsedBatches[batchKey];
-        const batchName = batch ? batch.name : 'Inventario General / Sin Categoría';
+    <button
+      type="button"
+      onClick={start}
+      title={`Toca para cambiar: ${label}`}
+      className={`group inline-flex items-center gap-1.5 min-h-[44px] px-2 -mx-2 rounded-xl hover:bg-coral-50 transition-colors ${
+        strong ? 'font-extrabold' : 'font-semibold'
+      } ${saved ? 'bg-emerald-50 text-emerald-700' : ''}`}
+    >
+      <span>{display}</span>
+      {saved ? (
+        <Check className="w-4 h-4 text-emerald-600" />
+      ) : (
+        <Pencil className="w-3.5 h-3.5 text-deepSlate-300 group-hover:text-coral-500" />
+      )}
+    </button>
+  );
+};
 
-        // Group financial totals
-        const totalStock = items.reduce((acc, curr) => acc + (curr.stock_current || 0), 0);
-        const totalInvestmentUsd = items.reduce(
-          (acc, curr) => acc + (curr.stock_current || 0) * (curr.landed_cost_usd || curr.base_cost_usd || 0),
-          0
-        );
-        const totalProjectedRevenueUsd = items.reduce(
-          (acc, curr) => acc + (curr.stock_current || 0) * (curr.price_usd || 0),
-          0
-        );
-        const totalProjectedRevenueNio = items.reduce(
-          (acc, curr) => acc + (curr.stock_current || 0) * (curr.price_nio || 0),
-          0
-        );
+/* ---------- Tabla / tarjetas ---------- */
+export const InventoryTable: React.FC<InventoryTableProps> = ({
+  products,
+  totalProducts,
+  exchangeRate,
+  role,
+  hasActiveFilter,
+  onClearFilters,
+  onUpdateProduct,
+  onDeleteProduct,
+  onAddProduct,
+  onImport,
+  onOpenPriceHistory,
+}) => {
+  const isOwner = role !== 'seller';
+  const [toDelete, setToDelete] = useState<Product | null>(null);
 
-        return (
-          <div
-            key={batchKey}
-            className="bg-white rounded-3xl border border-nacre-200 shadow-xs overflow-hidden transition-all"
-          >
-            {/* Collapsible Group Header Bar */}
-            <div className="bg-gradient-to-r from-nacre-100/90 via-white to-nacre-50 px-4 sm:px-6 py-3.5 border-b border-nacre-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={() => toggleBatch(batchKey)}
-                  className="p-1 rounded-lg text-deepSlate-500 hover:text-coral-500 hover:bg-white transition-colors"
-                  aria-label={isCollapsed ? 'Expandir grupo' : 'Colapsar grupo'}
-                >
-                  <ChevronDown
-                    className={`w-5 h-5 transition-transform duration-200 ease-out-natural ${
-                      isCollapsed ? '-rotate-90 text-deepSlate-400' : 'rotate-0 text-coral-500'
-                    }`}
+  const savePrice = (p: Product) => async (nio: number) => {
+    await onUpdateProduct(
+      p.id,
+      { price_nio: round2(nio), price_usd: round2(nio / exchangeRate) },
+      'Cambio de precio'
+    );
+  };
+  const saveCost = (p: Product) => async (nio: number) => {
+    const costUsd = round2(nio / exchangeRate);
+    await onUpdateProduct(
+      p.id,
+      { base_cost_usd: costUsd, landed_cost_usd: costUsd },
+      'Cambio de costo'
+    );
+  };
+  const saveStock = (p: Product) => async (n: number) => {
+    await onUpdateProduct(p.id, { stock_current: n }, 'Cambio de cantidad');
+  };
+
+  if (products.length === 0) {
+    return (
+      <div className="bg-white rounded-3xl border border-nacre-200 p-8 sm:p-12 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-coral-50 border border-coral-200 flex items-center justify-center text-coral-500 mx-auto mb-4">
+          <PackageSearch className="w-8 h-8" />
+        </div>
+        {totalProducts === 0 ? (
+          <>
+            <h3 className="text-lg font-extrabold text-deepSlate-900">Aún no tienes productos</h3>
+            <p className="text-sm text-deepSlate-500 mt-1 max-w-sm mx-auto mb-6">
+              Agrega tu primer producto en menos de un minuto, o sube tu lista desde Excel si ya la tienes.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                onClick={onAddProduct}
+                className="w-full sm:w-auto min-h-[48px] px-6 rounded-xl text-sm font-bold text-white bg-coral-500 hover:bg-coral-600 inline-flex items-center justify-center gap-2"
+              >
+                <Plus className="w-5 h-5" /> Agregar producto
+              </button>
+              <button
+                onClick={onImport}
+                className="w-full sm:w-auto min-h-[48px] px-6 rounded-xl text-sm font-bold text-deepSlate-700 bg-nacre-100 hover:bg-nacre-200"
+              >
+                Subir mi lista de Excel
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <h3 className="text-lg font-extrabold text-deepSlate-900">No encontramos nada</h3>
+            <p className="text-sm text-deepSlate-500 mt-1 max-w-sm mx-auto mb-6">
+              Ningún producto coincide con lo que buscas. Revisa cómo lo escribiste o quita los filtros.
+            </p>
+            {hasActiveFilter && (
+              <button
+                onClick={onClearFilters}
+                className="min-h-[48px] px-6 rounded-xl text-sm font-bold text-coral-700 bg-coral-50 hover:bg-coral-100 border border-coral-200"
+              >
+                Quitar filtros
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
+
+  const StockBadge: React.FC<{ stock: number }> = ({ stock }) => {
+    const ui = STOCK_STATUS_UI[getStockStatus(stock)];
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${ui.badge}`}
+      >
+        <span className={`w-2 h-2 rounded-full ${ui.dot}`} />
+        {ui.label}
+      </span>
+    );
+  };
+
+  const RowActions: React.FC<{ p: Product }> = ({ p }) => (
+    <div className="flex items-center justify-end gap-1">
+      <button
+        onClick={() => onOpenPriceHistory(p)}
+        className="min-w-[44px] min-h-[44px] rounded-xl text-deepSlate-400 hover:text-coral-600 hover:bg-coral-50 flex items-center justify-center"
+        title="Ver cambios de precio"
+        aria-label={`Ver cambios de precio de ${p.name}`}
+      >
+        <History className="w-5 h-5" />
+      </button>
+      {isOwner && (
+        <button
+          onClick={() => setToDelete(p)}
+          className="min-w-[44px] min-h-[44px] rounded-xl text-deepSlate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center"
+          title="Borrar producto"
+          aria-label={`Borrar ${p.name}`}
+        >
+          <Trash2 className="w-5 h-5" />
+        </button>
+      )}
+    </div>
+  );
+
+  return (
+    <>
+      {/* Escritorio: tabla */}
+      <div className="hidden md:block bg-white rounded-3xl border border-nacre-200 overflow-hidden">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="bg-nacre-50 border-b border-nacre-200 text-deepSlate-600 font-bold">
+              <th className="py-3 px-4">Producto</th>
+              <th className="py-3 px-4">Cuánto queda</th>
+              <th className="py-3 px-4 text-right">Precio de venta</th>
+              {isOwner && <th className="py-3 px-4 text-right">Te costó</th>}
+              {isOwner && <th className="py-3 px-4 text-right">Ganas por pieza</th>}
+              <th className="py-3 px-4 w-28"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-nacre-100">
+            {products.map((p) => {
+              const { costNio, profit, pct } = profitPerPiece(p, exchangeRate);
+              return (
+                <tr key={p.id} className="hover:bg-coral-50/20">
+                  <td className="py-2 px-4 max-w-xs">
+                    <span className="font-bold text-deepSlate-900 block truncate">
+                      {p.name || `Producto ${p.sku}`}
+                    </span>
+                    <span className="text-xs text-deepSlate-400">Código {p.sku}</span>
+                  </td>
+                  <td className="py-2 px-4">
+                    <div className="flex items-center gap-3">
+                      <InlineNumber
+                        display={`${p.stock_current} ${p.stock_current === 1 ? 'pieza' : 'piezas'}`}
+                        initial={p.stock_current}
+                        label="cantidad que tienes"
+                        integer
+                        onSave={saveStock(p)}
+                      />
+                      <StockBadge stock={p.stock_current} />
+                    </div>
+                  </td>
+                  <td className="py-2 px-4 text-right">
+                    <InlineNumber
+                      display={
+                        <span className="text-right">
+                          <span className="block text-coral-600">{fmtNio(p.price_nio)}</span>
+                          <span className="block text-xs font-medium text-deepSlate-400">
+                            {fmtUsd(p.price_usd)}
+                          </span>
+                        </span>
+                      }
+                      initial={p.price_nio}
+                      prefix="C$"
+                      label="precio en córdobas"
+                      strong
+                      onSave={savePrice(p)}
+                    />
+                  </td>
+                  {isOwner && (
+                    <td className="py-2 px-4 text-right text-deepSlate-600 font-semibold">
+                      <InlineNumber
+                        display={
+                          <span className="text-right">
+                            <span className="block text-deepSlate-700">{fmtNio(costNio)}</span>
+                            <span className="block text-xs font-medium text-deepSlate-400">
+                              {fmtUsd(costNio / exchangeRate)}
+                            </span>
+                          </span>
+                        }
+                        initial={round2(costNio)}
+                        prefix="C$"
+                        label="costo en córdobas"
+                        onSave={saveCost(p)}
+                      />
+                    </td>
+                  )}
+                  {isOwner && (
+                    <td className="py-2 px-4 text-right">
+                      <span
+                        className={`font-extrabold block ${
+                          profit <= 0 ? 'text-rose-600' : pct < 15 ? 'text-amber-600' : 'text-emerald-700'
+                        }`}
+                      >
+                        {fmtNio(profit)}
+                      </span>
+                      <span className="text-xs text-deepSlate-400 font-semibold">{pct.toFixed(0)}%</span>
+                    </td>
+                  )}
+                  <td className="py-2 px-4">
+                    <RowActions p={p} />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Móvil: tarjetas */}
+      <div className="md:hidden space-y-3">
+        {products.map((p) => {
+          const { costNio, profit, pct } = profitPerPiece(p, exchangeRate);
+          return (
+            <div key={p.id} className="bg-white rounded-2xl border border-nacre-200 p-4 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-extrabold text-deepSlate-900 text-base leading-tight">
+                    {p.name || `Producto ${p.sku}`}
+                  </p>
+                  <p className="text-xs text-deepSlate-400 mt-0.5">Código {p.sku}</p>
+                </div>
+                <StockBadge stock={p.stock_current} />
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="bg-nacre-50 rounded-xl p-3">
+                  <p className="text-xs font-bold text-deepSlate-500 mb-0.5">Cuánto queda</p>
+                  <InlineNumber
+                    display={`${p.stock_current} ${p.stock_current === 1 ? 'pieza' : 'piezas'}`}
+                    initial={p.stock_current}
+                    label="cantidad que tienes"
+                    integer
+                    onSave={saveStock(p)}
                   />
-                </button>
-
-                <div className="flex items-center space-x-2">
-                  <span className="font-extrabold text-sm text-deepSlate-900 tracking-tight">
-                    {batchName}
-                  </span>
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-nacre-200 text-deepSlate-700">
-                    {items.length} {items.length === 1 ? 'ítem' : 'ítems'}
-                  </span>
-                  <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full bg-coral-50 text-coral-700 border border-coral-200">
-                    {totalStock} uds en stock
-                  </span>
+                </div>
+                <div className="bg-nacre-50 rounded-xl p-3">
+                  <p className="text-xs font-bold text-deepSlate-500 mb-0.5">Precio de venta</p>
+                  <InlineNumber
+                    display={<span className="text-coral-600">{fmtNio(p.price_nio)}</span>}
+                    initial={p.price_nio}
+                    prefix="C$"
+                    label="precio en córdobas"
+                    strong
+                    onSave={savePrice(p)}
+                  />
+                  <p className="text-xs text-deepSlate-400">{fmtUsd(p.price_usd)}</p>
                 </div>
               </div>
-
-              {/* Financial metrics in group header (Only for Owner) */}
-              <div className="flex items-center space-x-4 text-xs">
-                {role !== 'seller' ? (
-                  <div className="hidden lg:flex items-center space-x-4">
-                    <div className="text-right">
-                      <span className="text-[10px] text-deepSlate-400 block uppercase font-bold">Inversión Stock:</span>
-                      <span className="font-mono font-bold text-deepSlate-800">
-                        ${totalInvestmentUsd.toFixed(2)} USD
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[10px] text-coral-600 block uppercase font-bold">Venta Proyectada:</span>
-                      <span className="font-mono font-extrabold text-coral-600">
-                        C$ {totalProjectedRevenueNio.toFixed(2)}
-                      </span>
-                      <span className="text-[10px] text-deepSlate-400 block font-mono">
-                        (${totalProjectedRevenueUsd.toFixed(2)} USD)
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center space-x-1 text-xs text-deepSlate-400">
-                    <Lock className="w-3.5 h-3.5" />
-                    <span>Márgenes protegidos</span>
-                  </div>
-                )}
-
-                <button
-                  onClick={() => onOpenNewProductModal(batch ? batch.id : undefined)}
-                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-coral-600 bg-coral-50 hover:bg-coral-100 border border-coral-200 transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Añadir a lote</span>
-                </button>
+              {isOwner && (
+                <p className="text-sm text-deepSlate-600">
+                  Te costó <strong>{fmtNio(costNio)}</strong> · Ganas{' '}
+                  <strong className={profit <= 0 ? 'text-rose-600' : 'text-emerald-700'}>
+                    {fmtNio(profit)}
+                  </strong>{' '}
+                  ({pct.toFixed(0)}%)
+                </p>
+              )}
+              <div className="border-t border-nacre-100 pt-1">
+                <RowActions p={p} />
               </div>
-
             </div>
+          );
+        })}
+      </div>
 
-            {/* Table of items inside this batch */}
-            {!isCollapsed && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="bg-nacre-50/70 border-b border-nacre-200 text-deepSlate-500 uppercase tracking-wider font-semibold select-none">
-                      <th className="py-3 px-4 w-32">SKU</th>
-                      <th className="py-3 px-4 min-w-[200px]">Producto / Descripción</th>
-                      <th className="py-3 px-4 text-center w-24">Stock</th>
-                      {role !== 'seller' && (
-                        <th className="py-3 px-4 text-right w-28">Costo ($)</th>
-                      )}
-                      <th className="py-3 px-4 text-right w-32">Precio ($)</th>
-                      <th className="py-3 px-4 text-right w-36">Precio (C$)</th>
-                      {role !== 'seller' && (
-                        <th className="py-3 px-4 text-center w-28">Margen (%)</th>
-                      )}
-                      <th className="py-3 px-4 text-center w-24">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-nacre-100 font-sans">
-                    {items.map((p) => {
-                      const cost = p.landed_cost_usd || p.base_cost_usd || 0;
-                      const priceUsd = p.price_usd || 0;
-                      const marginPercent = priceUsd > 0 ? ((priceUsd - cost) / priceUsd) * 100 : 0;
-                      const isHealthy = marginPercent >= 35;
-                      const isWarning = marginPercent >= 15 && marginPercent < 35;
-
-                      return (
-                        <tr
-                          key={p.id}
-                          className={`hover:bg-coral-50/30 transition-colors group ${
-                            recentlySavedId === p.id ? 'animate-cell-success' : ''
-                          }`}
-                        >
-                          {/* SKU (Inline Editable) */}
-                          <td className="py-3 px-4 font-mono font-bold text-deepSlate-900">
-                            {editingCell?.id === p.id && editingCell?.field === 'sku' ? (
-                              <input
-                                type="text"
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                onBlur={() => handleInlineSave(p)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleInlineSave(p)}
-                                autoFocus
-                                className="w-full px-2 py-1 text-xs font-mono font-bold rounded bg-white border-2 border-coral-500 text-deepSlate-900 uppercase focus:outline-none"
-                              />
-                            ) : (
-                              <span
-                                onClick={() => startEditing(p, 'sku')}
-                                className="cursor-pointer hover:text-coral-600 hover:underline flex items-center space-x-1"
-                                title="Haz clic para editar SKU"
-                              >
-                                <span>{p.sku}</span>
-                              </span>
-                            )}
-                          </td>
-
-                          {/* Product Name (Inline Editable) */}
-                          <td className="py-3 px-4 font-medium text-deepSlate-900">
-                            {editingCell?.id === p.id && editingCell?.field === 'name' ? (
-                              <input
-                                type="text"
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                onBlur={() => handleInlineSave(p)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleInlineSave(p)}
-                                autoFocus
-                                className="w-full px-2 py-1 text-xs font-medium rounded bg-white border-2 border-coral-500 text-deepSlate-900 focus:outline-none"
-                              />
-                            ) : (
-                              <span
-                                onClick={() => startEditing(p, 'name')}
-                                className="cursor-pointer hover:text-coral-600 hover:underline block truncate max-w-md"
-                                title="Haz clic para editar nombre"
-                              >
-                                {p.name || `Producto ${p.sku}`}
-                              </span>
-                            )}
-                          </td>
-
-                          {/* Stock (Inline Editable) */}
-                          <td className="py-3 px-4 text-center font-mono font-semibold">
-                            {editingCell?.id === p.id && editingCell?.field === 'stock_current' ? (
-                              <input
-                                type="number"
-                                min="0"
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                onBlur={() => handleInlineSave(p)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleInlineSave(p)}
-                                autoFocus
-                                className="w-16 px-1.5 py-1 text-xs font-mono text-center font-bold rounded bg-white border-2 border-coral-500 focus:outline-none"
-                              />
-                            ) : (
-                              <span
-                                onClick={() => startEditing(p, 'stock_current')}
-                                className={`cursor-pointer inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                                  p.stock_current <= 0
-                                    ? 'bg-rose-100 text-rose-800'
-                                    : p.stock_current <= 2
-                                    ? 'bg-amber-100 text-amber-800'
-                                    : 'bg-nacre-100 text-deepSlate-800 hover:bg-nacre-200'
-                                }`}
-                                title="Haz clic para editar stock"
-                              >
-                                {p.stock_current} {p.stock_current === 1 ? 'ud' : 'uds'}
-                              </span>
-                            )}
-                          </td>
-
-                          {/* Cost USD (Hidden if seller, Inline Editable if owner) */}
-                          {role !== 'seller' && (
-                            <td className="py-3 px-4 text-right font-mono text-deepSlate-600 tabular-numbers">
-                              {editingCell?.id === p.id && editingCell?.field === 'landed_cost_usd' ? (
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={editValue}
-                                  onChange={(e) => setEditValue(e.target.value)}
-                                  onBlur={() => handleInlineSave(p)}
-                                  onKeyDown={(e) => e.key === 'Enter' && handleInlineSave(p)}
-                                  autoFocus
-                                  className="w-20 px-1.5 py-1 text-xs font-mono text-right font-bold rounded bg-white border-2 border-coral-500 focus:outline-none"
-                                />
-                              ) : (
-                                <span
-                                  onClick={() => startEditing(p, 'landed_cost_usd')}
-                                  className="cursor-pointer hover:text-coral-600 hover:underline"
-                                  title="Haz clic para editar costo"
-                                >
-                                  ${cost.toFixed(2)}
-                                </span>
-                              )}
-                            </td>
-                          )}
-
-                          {/* Price USD (Inline Editable) */}
-                          <td className="py-3 px-4 text-right font-mono font-bold text-deepSlate-900 tabular-numbers">
-                            {editingCell?.id === p.id && editingCell?.field === 'price_usd' ? (
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                onBlur={() => handleInlineSave(p)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleInlineSave(p)}
-                                autoFocus
-                                className="w-24 px-1.5 py-1 text-xs font-mono text-right font-bold rounded bg-white border-2 border-coral-500 focus:outline-none"
-                              />
-                            ) : (
-                              <span
-                                onClick={() => startEditing(p, 'price_usd')}
-                                className="cursor-pointer hover:text-coral-600 hover:underline"
-                                title="Haz clic para editar precio USD"
-                              >
-                                ${priceUsd.toFixed(2)}
-                              </span>
-                            )}
-                          </td>
-
-                          {/* Price NIO (Inline Editable) */}
-                          <td className="py-3 px-4 text-right font-mono font-extrabold text-coral-600 tabular-numbers">
-                            {editingCell?.id === p.id && editingCell?.field === 'price_nio' ? (
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                onBlur={() => handleInlineSave(p)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleInlineSave(p)}
-                                autoFocus
-                                className="w-24 px-1.5 py-1 text-xs font-mono text-right font-extrabold rounded bg-white border-2 border-coral-500 text-coral-600 focus:outline-none"
-                              />
-                            ) : (
-                              <span
-                                onClick={() => startEditing(p, 'price_nio')}
-                                className="cursor-pointer hover:text-coral-700 hover:underline"
-                                title="Haz clic para editar o redondear precio en Córdobas"
-                              >
-                                C$ {Number(p.price_nio || 0).toFixed(2)}
-                              </span>
-                            )}
-                          </td>
-
-                          {/* Profit Margin Semaphore (Hidden if seller) */}
-                          {role !== 'seller' && (
-                            <td className="py-3 px-4 text-center">
-                              <span
-                                className={`inline-flex items-center px-2 py-0.5 rounded-md font-mono text-[11px] font-bold ${
-                                  p.stock_current <= 0
-                                    ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                                    : isHealthy
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                    : isWarning
-                                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                    : 'bg-rose-50 text-rose-700 border border-rose-200'
-                                }`}
-                              >
-                                +{marginPercent.toFixed(1)}%
-                              </span>
-                            </td>
-                          )}
-
-                          {/* Row Action Buttons */}
-                          <td className="py-3 px-4 text-center">
-                            <div className="flex items-center justify-center space-x-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={() => onOpenPriceHistory(p)}
-                                className="p-1.5 rounded-lg text-deepSlate-400 hover:text-coral-500 hover:bg-coral-50 transition-colors"
-                                title="Ver historial de auditoría de precios"
-                              >
-                                <History className="w-3.5 h-3.5" />
-                              </button>
-
-                              {role !== 'seller' && (
-                                <button
-                                  onClick={() => {
-                                    if (confirm(`¿Estás seguro de eliminar el producto ${p.sku}?`)) {
-                                      onDeleteProduct(p.id);
-                                    }
-                                  }}
-                                  className="p-1.5 rounded-lg text-deepSlate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                                  title="Eliminar producto"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-          </div>
-        );
-      })}
-    </div>
+      <ConfirmDialog
+        isOpen={!!toDelete}
+        title="¿Borrar este producto?"
+        message={
+          <>
+            Vas a borrar <strong>{toDelete?.name || toDelete?.sku}</strong>
+            {toDelete && toDelete.stock_current > 0
+              ? ` (todavía tienes ${toDelete.stock_current} en existencia)`
+              : ''}
+            . Esta acción no se puede deshacer.
+          </>
+        }
+        confirmLabel="Sí, borrar"
+        cancelLabel="No, conservar"
+        onCancel={() => setToDelete(null)}
+        onConfirm={async () => {
+          if (toDelete) await onDeleteProduct(toDelete.id);
+          setToDelete(null);
+        }}
+      />
+    </>
   );
 };

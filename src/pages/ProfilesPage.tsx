@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Users,
   UserPlus,
@@ -9,397 +10,1142 @@ import {
   AlertCircle,
   CheckCircle2,
   Sparkles,
-  RefreshCw
+  Check,
+  ShieldCheck,
+  Store,
+  Palette,
+  Camera,
+  AtSign,
+  KeyRound,
+  RotateCcw,
+  Loader2,
+  Copy,
+  Lock,
+  Save,
+  UserCircle2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Profile, UserRole } from '../types';
-import {
-  getStoredTeamProfiles,
-  saveStoredTeamProfiles,
-  TEST_ACCOUNT_PRESETS,
-  TENANT_STELLA_ID,
-  ensureRealInventorySeeded,
-} from '../data/realInventoryData';
+import { PlanTier, Profile, ThemePaletteId } from '../types';
+import { PLAN_INFO } from '../lib/navigation';
+import { THEME_PALETTE_LIST, applyThemePalette } from '../lib/themes';
+import { ConfirmDialog } from '../components/shared/ConfirmDialog';
+
+const PRESET_AVATARS = [
+  'https://api.dicebear.com/7.x/Notionists/svg?seed=GabiOwner&backgroundColor=ffdfbf',
+  'https://api.dicebear.com/7.x/Notionists/svg?seed=Executive1&backgroundColor=ffd5dc',
+  'https://api.dicebear.com/7.x/Notionists/svg?seed=StoreBoss&backgroundColor=c0aede',
+  'https://api.dicebear.com/7.x/Notionists/svg?seed=CommercePro&backgroundColor=d1d4f9',
+  'https://api.dicebear.com/7.x/Notionists/svg?seed=NicaStore&backgroundColor=b6e3f4',
+];
+
+const PLAN_FEATURES: Record<PlanTier, { people: string; bullets: string[] }> = {
+  1: {
+    people: '1 Cuenta Dueño',
+    bullets: [
+      'Personaliza nombre de tu tienda, foto y tema de colores',
+      'Anota tus ventas del día en córdobas o dólares',
+      'Lista de productos clara con aviso cuando quedan pocos',
+      'Resumen de cuánto dinero entra y cuánto ganas',
+    ],
+  },
+  2: {
+    people: '1 Dueño + 1 Cuenta Empleado',
+    bullets: [
+      'Todo lo del plan Básico + 1 cuenta de empleado asociada',
+      'Gestiona el usuario y contraseña de tu empleado desde tu cuenta',
+      'Costo de mis compras: reparte envío e impuestos en cada producto',
+      'Control de gastos del negocio y ventas al crédito o apartados',
+    ],
+  },
+  3: {
+    people: '1 Dueño + 2 Cuentas Empleado',
+    bullets: [
+      'Todo lo del plan Crece + 2 cuentas de empleado asociadas',
+      'Historial de cambios día por día (precios, productos dañados o prestados)',
+      'Control de mercadería prestada a otras tiendas',
+      'Reporte mensual completo de ganancias y pérdidas',
+    ],
+  },
+};
 
 export const ProfilesPage: React.FC = () => {
   const {
+    profile,
     tenant,
     planTier,
     role,
-    setSimulatedRole,
-    setSimulatedTier,
+    teamMembers,
     updateTenantConfig,
-    signInWithPreset,
+    updateStoreAndOwnerProfile,
+    uploadProfilePhoto,
+    updateEmployeeAccount,
+    createEmployeeAccount,
+    deleteEmployeeAccount,
+    openOnboardingModal,
+    resetOwnerOnboardingForTest,
   } = useAuth();
 
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [newName, setNewName] = useState('');
-  const [newRole, setNewRole] = useState<UserRole>('seller');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Estado del Dueño y Tienda
+  const [storeName, setStoreName] = useState(tenant?.name || 'Mi Tienda');
+  const [selectedTheme, setSelectedTheme] = useState<ThemePaletteId>(
+    tenant?.theme_palette || 'coral'
+  );
+  const [ownerFullName, setOwnerFullName] = useState(profile?.full_name || '');
+  const [ownerUsername, setOwnerUsername] = useState(profile?.username || '');
+  const [ownerAvatarUrl, setOwnerAvatarUrl] = useState(profile?.avatar_url || '');
+  const [ownerNewPassword, setOwnerNewPassword] = useState('');
+  const [showOwnerPassword, setShowOwnerPassword] = useState(false);
+  const [isSavingOwner, setIsSavingOwner] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  // Estado de edición por empleado
+  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
+  const [empFullName, setEmpFullName] = useState('');
+  const [empUsername, setEmpUsername] = useState('');
+  const [empNewPassword, setEmpNewPassword] = useState('');
+  const [showEmpPassword, setShowEmpPassword] = useState(false);
+  const [isSavingEmployee, setIsSavingEmployee] = useState(false);
+
+  // Estado para crear nuevo empleado
+  const [newEmpName, setNewEmpName] = useState('');
+  const [newEmpUsername, setNewEmpUsername] = useState('');
+  const [newEmpPassword, setNewEmpPassword] = useState('clave2026');
+  const [showNewEmpPass, setShowNewEmpPass] = useState(false);
+  const [isCreatingEmp, setIsCreatingEmp] = useState(false);
+
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [credentialsBox, setCredentialsBox] = useState<{
+    title: string;
+    username: string;
+    password: string;
+  } | null>(null);
 
-  const loadProfiles = () => {
-    setProfiles(getStoredTeamProfiles());
-  };
+  const [employeeToDelete, setEmployeeToDelete] = useState<Profile | null>(null);
 
   useEffect(() => {
-    loadProfiles();
-  }, []);
+    if (tenant) {
+      setStoreName(tenant.name || 'Mi Tienda');
+      setSelectedTheme(tenant.theme_palette || 'coral');
+    }
+    if (profile) {
+      setOwnerFullName(profile.full_name || '');
+      setOwnerUsername(profile.username || '');
+      setOwnerAvatarUrl(profile.avatar_url || '');
+    }
+  }, [tenant?.name, tenant?.theme_palette, profile?.full_name, profile?.username, profile?.avatar_url]);
 
-  const maxOwners = tenant?.max_owner_profiles ?? 1;
+  // ==========================================================================
+  // BLOQUEO ESTRICTO PARA CUENTA EMPLEADO ('seller')
+  // ==========================================================================
+  if (role === 'seller') {
+    return (
+      <div className="p-6 sm:p-10 max-w-xl mx-auto">
+        <div className="bg-white rounded-3xl border border-nacre-200 p-8 text-center space-y-5 shadow-sm">
+          <div className="w-14 h-14 rounded-2xl bg-coral-50 border border-coral-200 text-coral-600 flex items-center justify-center mx-auto">
+            <Lock className="w-7 h-7" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-xl font-extrabold text-deepSlate-900">
+              Configuración exclusiva para el Dueño
+            </h1>
+            <p className="text-sm text-deepSlate-500 leading-relaxed">
+              Tu cuenta de <strong>Empleado (@{profile?.username})</strong> está asociada a{' '}
+              <strong>{tenant?.name || 'la tienda'}</strong>. Por seguridad, solo la cuenta del dueño puede
+              cambiar el nombre de la tienda, tema de colores, nombres de usuario o contraseñas.
+            </p>
+          </div>
+          <div className="p-4 rounded-2xl bg-nacre-50 border border-nacre-200 text-left text-xs space-y-1">
+            <div>
+              <span className="text-deepSlate-400">Tu nombre: </span>
+              <strong className="text-deepSlate-900">{profile?.full_name}</strong>
+            </div>
+            <div>
+              <span className="text-deepSlate-400">Tu usuario: </span>
+              <strong className="font-mono text-deepSlate-900">@{profile?.username}</strong>
+            </div>
+            <div>
+              <span className="text-deepSlate-400">Tienda asignada: </span>
+              <strong className="text-deepSlate-900">{tenant?.name}</strong>
+            </div>
+          </div>
+          <Link
+            to="/app/closing"
+            className="inline-flex items-center justify-center w-full py-3 px-5 rounded-xl text-sm font-bold text-white bg-coral-500 hover:bg-coral-600 transition-colors"
+          >
+            Ir a Mis Ventas
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const sellers = teamMembers.filter((m) => m.role === 'seller');
   const maxSellers = tenant?.max_seller_profiles ?? (planTier === 1 ? 0 : planTier === 2 ? 1 : 2);
   const extraPaid = tenant?.extra_paid_profiles ?? 0;
+  const allowedSellerSeats = maxSellers + extraPaid;
+  const remainingSellerSeats = Math.max(0, allowedSellerSeats - sellers.length);
 
-  const totalAllowedSeats = maxOwners + maxSellers + extraPaid;
-  const currentOwners = profiles.filter((p) => p.role === 'global_owner').length;
-  const currentSellers = profiles.filter((p) => p.role === 'seller').length;
-  const usedSeats = profiles.length;
-  const remainingSeats = Math.max(0, totalAllowedSeats - usedSeats);
+  const handleThemeSelect = async (themeId: ThemePaletteId) => {
+    setSelectedTheme(themeId);
+    applyThemePalette(themeId);
+    const res = await updateStoreAndOwnerProfile({ themePalette: themeId });
+    if (res.success) {
+      setSuccessMsg('Tema de colores de la tienda actualizado en Supabase.');
+    }
+  };
 
-  const handleAddProfile = (e: React.FormEvent) => {
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setErrorMsg(null);
+    setIsUploadingAvatar(true);
+    const res = await uploadProfilePhoto(file);
+    setIsUploadingAvatar(false);
+
+    if (res.error) {
+      setErrorMsg(res.error);
+    } else if (res.url) {
+      setOwnerAvatarUrl(res.url);
+      await updateStoreAndOwnerProfile({ ownerAvatarUrl: res.url });
+      setSuccessMsg('Tu foto de perfil se subió y guardó en Supabase Storage.');
+    }
+  };
+
+  const handleSaveOwnerAndStore = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    if (!newName.trim()) {
-      setErrorMsg('Ingresa el nombre completo del integrante.');
+    if (!storeName.trim()) {
+      setErrorMsg('Escribe el nombre de tu tienda.');
+      return;
+    }
+    if (!ownerFullName.trim()) {
+      setErrorMsg('Escribe tu nombre completo.');
+      return;
+    }
+    const cleanUser = ownerUsername.trim().replace(/^@/, '');
+    if (!cleanUser || cleanUser.length < 3) {
+      setErrorMsg('Tu nombre de usuario debe tener al menos 3 caracteres.');
       return;
     }
 
-    if (usedSeats >= totalAllowedSeats) {
+    setIsSavingOwner(true);
+    const res = await updateStoreAndOwnerProfile({
+      storeName: storeName.trim(),
+      themePalette: selectedTheme,
+      ownerFullName: ownerFullName.trim(),
+      ownerUsername: cleanUser,
+      ownerAvatarUrl,
+      ownerNewPassword: ownerNewPassword.trim() || undefined,
+    });
+    setIsSavingOwner(false);
+
+    if (!res.success) {
+      setErrorMsg(res.error || 'No se pudieron guardar los cambios.');
+    } else {
+      setOwnerNewPassword('');
+      setSuccessMsg(
+        'Se guardaron los datos de tu tienda y tu perfil de dueño en Supabase.'
+      );
+    }
+  };
+
+  const startEditingEmployee = (emp: Profile) => {
+    setEditingEmployeeId(emp.id);
+    setEmpFullName(emp.full_name);
+    setEmpUsername(emp.username || '');
+    setEmpNewPassword('');
+    setShowEmpPassword(false);
+    setErrorMsg(null);
+  };
+
+  const handleSaveEmployeeChanges = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEmployeeId) return;
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    const cleanUser = empUsername.trim().replace(/^@/, '');
+    if (!cleanUser || cleanUser.length < 3) {
+      setErrorMsg('El nombre de usuario del empleado debe tener al menos 3 caracteres.');
+      return;
+    }
+
+    setIsSavingEmployee(true);
+    const res = await updateEmployeeAccount(editingEmployeeId, {
+      full_name: empFullName.trim(),
+      username: cleanUser,
+      password: empNewPassword.trim() || undefined,
+    });
+    setIsSavingEmployee(false);
+
+    if (!res.success) {
+      setErrorMsg(res.error || 'No se pudo actualizar la cuenta del empleado.');
+    } else {
+      if (empNewPassword.trim()) {
+        setCredentialsBox({
+          title: `Credenciales actualizadas para ${empFullName.trim()}`,
+          username: cleanUser,
+          password: empNewPassword.trim(),
+        });
+      }
+      setEditingEmployeeId(null);
+      setEmpNewPassword('');
+      setSuccessMsg(
+        `Se actualizó la cuenta del empleado @${cleanUser} en Supabase Auth.`
+      );
+    }
+  };
+
+  const handleResetEmployeePassword = async (emp: Profile) => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    const tempPassword = `tienda${Math.floor(1000 + Math.random() * 9000)}`;
+    setIsSavingEmployee(true);
+    const res = await updateEmployeeAccount(emp.id, {
+      password: tempPassword,
+    });
+    setIsSavingEmployee(false);
+
+    if (!res.success) {
+      setErrorMsg(res.error || 'No se pudo reiniciar la contraseña.');
+    } else {
+      setCredentialsBox({
+        title: `Contraseña reiniciada para ${emp.full_name}`,
+        username: emp.username || emp.email || '',
+        password: tempPassword,
+      });
+      setSuccessMsg(
+        `Se reinició la contraseña de @${emp.username}. Copia la nueva clave temporal abajo.`
+      );
+    }
+  };
+
+  const handleCreateEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    if (sellers.length >= allowedSellerSeats) {
       setErrorMsg(
-        `Has alcanzado el límite de ${totalAllowedSeats} asiento(s) de tu Nivel ${planTier}. Añade un asiento extra o sube de nivel para registrar más usuarios.`
+        `Ya ocupaste los ${allowedSellerSeats} espacios de empleado de tu plan. Agrega un espacio extra para crear otra cuenta.`
       );
       return;
     }
 
-    if (newRole === 'seller' && planTier === 1 && extraPaid === 0) {
-      setErrorMsg(
-        'El Nivel 1 (Esencial) no incluye perfiles de Vendedor por defecto. Activa un asiento adicional o cambia al Nivel 2.'
-      );
+    if (!newEmpName.trim()) {
+      setErrorMsg('Escribe el nombre completo de tu empleado.');
       return;
     }
 
-    const created: Profile = {
-      id: `prof-${Date.now()}`,
-      tenant_id: tenant?.id || TENANT_STELLA_ID,
-      full_name: newName.trim(),
-      role: newRole,
-      created_at: new Date().toISOString(),
-    };
-
-    const updated = [...profiles, created];
-    setProfiles(updated);
-    saveStoredTeamProfiles(updated);
-    setNewName('');
-    setSuccessMsg(`Perfil "${created.full_name}" (${created.role === 'seller' ? 'Vendedor' : 'Dueño'}) creado exitosamente.`);
-  };
-
-  const handleRemoveProfile = (id: string) => {
-    if (profiles.length <= 1) {
-      setErrorMsg('Debe existir al menos 1 perfil Dueño activo en la empresa.');
+    const cleanUser = newEmpUsername.trim().replace(/^@/, '');
+    if (!cleanUser || cleanUser.length < 3) {
+      setErrorMsg('Escribe un nombre de usuario de al menos 3 caracteres para el empleado.');
       return;
     }
-    const updated = profiles.filter((p) => p.id !== id);
-    setProfiles(updated);
-    saveStoredTeamProfiles(updated);
+
+    if (!newEmpPassword || newEmpPassword.trim().length < 6) {
+      setErrorMsg('La contraseña del empleado debe tener al menos 6 caracteres.');
+      return;
+    }
+
+    setIsCreatingEmp(true);
+    const res = await createEmployeeAccount({
+      full_name: newEmpName.trim(),
+      username: cleanUser,
+      password: newEmpPassword.trim(),
+    });
+    setIsCreatingEmp(false);
+
+    if (!res.success) {
+      setErrorMsg(res.error || 'No se pudo crear la cuenta del empleado.');
+    } else {
+      setCredentialsBox({
+        title: `Nueva cuenta de empleado creada: ${newEmpName.trim()}`,
+        username: cleanUser,
+        password: newEmpPassword.trim(),
+      });
+      setNewEmpName('');
+      setNewEmpUsername('');
+      setNewEmpPassword('clave2026');
+      setSuccessMsg(`Cuenta de empleado @${cleanUser} creada en Supabase Auth.`);
+    }
   };
 
-  const handleAddExtraSeat = () => {
-    updateTenantConfig({ extra_paid_profiles: extraPaid + 1 });
-    setSuccessMsg('Se habilitó +1 asiento adicional (extra_paid_profiles) en la suscripción de tu empresa.');
-  };
-
-  const handleResetRealInventory = () => {
-    ensureRealInventorySeeded(true);
-    loadProfiles();
-    setSuccessMsg('¡Inventario real Stella, Wayuu y Georgina (116 SKUs) restaurado a su estado original!');
+  const handleConfirmDeleteEmployee = async () => {
+    if (!employeeToDelete) return;
+    setErrorMsg(null);
+    const res = await deleteEmployeeAccount(employeeToDelete.id);
+    if (!res.success) {
+      setErrorMsg(res.error || 'No se pudo eliminar la cuenta del empleado.');
+    } else {
+      setSuccessMsg(`Se eliminó la cuenta de empleado "${employeeToDelete.full_name}".`);
+    }
+    setEmployeeToDelete(null);
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-8">
-      
-      {/* Header */}
+    <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-6xl mx-auto">
+      {/* Encabezado */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center space-x-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-deepSlate-900 tracking-tight">
-              Perfiles, Roles & Licenciamiento por Nivel
+              Mi tienda y equipo
             </h1>
-            <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-coral-50 text-coral-600 border border-coral-200">
-              {usedSeats} / {totalAllowedSeats} Asientos
+            <span
+              className={`text-xs font-bold px-3 py-1 rounded-full ${PLAN_INFO[planTier].badgeColor}`}
+            >
+              Plan {PLAN_INFO[planTier].name}
             </span>
           </div>
-          <p className="text-xs sm:text-sm text-deepSlate-500 mt-1">
-            Administra los accesos de Dueño y Vendedores y prueba al instante cada uno de los 3 Niveles del sistema.
+          <p className="text-sm text-deepSlate-500 mt-1">
+            Personaliza el estilo de tu tienda, tu perfil de dueño y administra las cuentas de tus empleados.
           </p>
         </div>
 
-        <button
-          onClick={handleResetRealInventory}
-          className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-white hover:bg-nacre-100 text-deepSlate-800 border border-nacre-200 shadow-2xs"
-        >
-          <RefreshCw className="w-4 h-4 text-coral-500" />
-          <span>Restaurar Inventario Real Excel</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={openOnboardingModal}
+            className="min-h-[42px] px-4 rounded-xl text-xs sm:text-sm font-bold text-white bg-coral-500 hover:bg-coral-600 shadow-sm inline-flex items-center gap-2"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Asistente de personalización</span>
+          </button>
+          <button
+            type="button"
+            onClick={resetOwnerOnboardingForTest}
+            className="min-h-[42px] px-3.5 rounded-xl text-xs font-bold text-deepSlate-700 bg-white hover:bg-nacre-100 border border-nacre-200 inline-flex items-center gap-1.5"
+            title="Simular el primer inicio de sesión de cuenta dueño"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-coral-500" />
+            <span>Simular 1er inicio de sesión</span>
+          </button>
+        </div>
       </div>
 
       {errorMsg && (
-        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center space-x-2">
-          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-          <span>{errorMsg}</span>
-        </div>
-      )}
-
-      {successMsg && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>{successMsg}</span>
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-semibold flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+            <span>{errorMsg}</span>
           </div>
-          <button onClick={() => setSuccessMsg(null)} className="underline">
+          <button onClick={() => setErrorMsg(null)} className="text-sm font-bold underline">
             Cerrar
           </button>
         </div>
       )}
 
-      {/* ==================================================================== */}
-      {/* QUICK TEST PROFILES SWITCHER (1-CLICK TESTING FOR ALL LEVELS)        */}
-      {/* ==================================================================== */}
-      <div className="bg-white rounded-3xl border border-nacre-200 p-6 shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-xl bg-coral-500 text-white flex items-center justify-center shadow-sm">
-              <Sparkles className="w-4 h-4" />
+      {successMsg && (
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-sm font-semibold flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <span>{successMsg}</span>
+          </div>
+          <button onClick={() => setSuccessMsg(null)} className="text-sm font-bold underline">
+            Cerrar
+          </button>
+        </div>
+      )}
+
+      {credentialsBox && (
+        <div className="p-5 rounded-3xl bg-coral-50 border-2 border-coral-500 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-extrabold text-deepSlate-900 flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-coral-600" />
+              <span>{credentialsBox.title}</span>
+            </h3>
+            <button
+              type="button"
+              onClick={() => setCredentialsBox(null)}
+              className="text-xs font-bold text-deepSlate-500 hover:text-deepSlate-900"
+            >
+              Cerrar
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-3.5 rounded-2xl border border-coral-200 font-mono text-xs">
+            <div>
+              <span className="text-deepSlate-400">Usuario de acceso: </span>
+              <strong className="text-deepSlate-900">@{credentialsBox.username}</strong>
             </div>
             <div>
-              <h3 className="text-base font-extrabold text-deepSlate-900">
-                Conmutador Rápido de Perfiles de Prueba (Inventario Real Stella & Georgina)
-              </h3>
-              <p className="text-xs text-deepSlate-500">
-                Haz clic en cualquiera de estos perfiles para cambiar inmediatamente de Nivel (`1`, `2` o `3`) y de Rol (`Dueño` o `Vendedor`).
-              </p>
+              <span className="text-deepSlate-400">Contraseña activa: </span>
+              <strong className="text-coral-600">{credentialsBox.password}</strong>
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-xs text-deepSlate-600">
+              Tu empleado ya puede iniciar sesión en la pantalla de Login con este usuario y contraseña.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard?.writeText(
+                  `Tienda: ${tenant?.name}\nUsuario: @${credentialsBox.username}\nContraseña: ${credentialsBox.password}`
+                );
+                setSuccessMsg('Credenciales copiadas al portapapeles.');
+              }}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-deepSlate-900 text-white hover:bg-coral-600 inline-flex items-center gap-1.5"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              <span>Copiar datos de acceso</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* SECCIÓN 1: ESTILO DE MI TIENDA Y PERFIL DE DUEÑO                     */}
+      {/* ==================================================================== */}
+      <form
+        onSubmit={handleSaveOwnerAndStore}
+        className="grid grid-cols-1 lg:grid-cols-12 gap-6"
+      >
+        {/* Columna izquierda: Foto y Perfil del Dueño */}
+        <div className="lg:col-span-5 bg-white rounded-3xl border border-nacre-200 p-6 space-y-5 shadow-2xs">
+          <div className="flex items-center gap-2.5">
+            <UserCircle2 className="w-5 h-5 text-coral-500" />
+            <h2 className="text-lg font-extrabold text-deepSlate-900">
+              Mi perfil de Dueño
+            </h2>
+          </div>
+
+          {/* Foto de perfil */}
+          <div className="p-4 rounded-2xl bg-nacre-50 border border-nacre-200 flex items-center gap-4">
+            <div className="relative shrink-0">
+              {ownerAvatarUrl ? (
+                <img
+                  src={ownerAvatarUrl}
+                  alt={ownerFullName}
+                  className="w-16 h-16 rounded-2xl object-cover border-2 border-coral-500 bg-white"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-2xl bg-coral-500 text-white text-xl font-extrabold flex items-center justify-center">
+                  {(ownerFullName || storeName || 'D').charAt(0).toUpperCase()}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingAvatar}
+                className="absolute -bottom-1.5 -right-1.5 p-1.5 rounded-xl bg-deepSlate-900 hover:bg-coral-600 text-white shadow-sm"
+                title="Cambiar foto de perfil"
+              >
+                {isUploadingAvatar ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Camera className="w-3.5 h-3.5" />
+                )}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarUpload}
+                className="hidden"
+              />
+            </div>
+
+            <div className="space-y-1.5 flex-1 min-w-0">
+              <p className="text-xs font-extrabold text-deepSlate-900">Foto de perfil</p>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white border border-coral-200 text-coral-600 hover:bg-coral-50"
+                >
+                  Subir foto
+                </button>
+                {PRESET_AVATARS.map((url, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setOwnerAvatarUrl(url)}
+                    className={`w-7 h-7 rounded-lg overflow-hidden border-2 bg-white ${
+                      ownerAvatarUrl === url ? 'border-coral-500' : 'border-nacre-200'
+                    }`}
+                  >
+                    <img src={url} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3.5">
+            <div>
+              <label className="block text-xs font-bold text-deepSlate-700 mb-1">
+                Tu nombre completo
+              </label>
+              <input
+                type="text"
+                required
+                value={ownerFullName}
+                onChange={(e) => setOwnerFullName(e.target.value)}
+                className="w-full px-3.5 py-2.5 text-sm font-bold rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-deepSlate-700 mb-1">
+                Tu nombre de usuario (Login)
+              </label>
+              <div className="relative">
+                <AtSign className="w-4 h-4 text-coral-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  required
+                  value={ownerUsername}
+                  onChange={(e) =>
+                    setOwnerUsername(
+                      e.target.value.toLowerCase().replace(/[^a-z0-9_.-]/g, '_')
+                    )
+                  }
+                  className="w-full pl-9 pr-3.5 py-2.5 text-sm font-mono font-bold rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-deepSlate-700 mb-1">
+                Cambiar mi contraseña (opcional)
+              </label>
+              <div className="relative">
+                <KeyRound className="w-4 h-4 text-deepSlate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type={showOwnerPassword ? 'text' : 'password'}
+                  placeholder="Dejar en blanco para mantener actual"
+                  value={ownerNewPassword}
+                  onChange={(e) => setOwnerNewPassword(e.target.value)}
+                  className="w-full pl-9 pr-10 py-2.5 text-xs font-mono rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowOwnerPassword(!showOwnerPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-deepSlate-400"
+                >
+                  {showOwnerPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {TEST_ACCOUNT_PRESETS.map((preset) => {
-            const isCurrent = planTier === preset.plan_tier && role === preset.role;
+        {/* Columna derecha: Nombre de la Tienda y Paleta de Colores */}
+        <div className="lg:col-span-7 bg-white rounded-3xl border border-nacre-200 p-6 flex flex-col justify-between space-y-5 shadow-2xs">
+          <div className="space-y-5">
+            <div className="flex items-center gap-2.5">
+              <Store className="w-5 h-5 text-coral-500" />
+              <h2 className="text-lg font-extrabold text-deepSlate-900">
+                Nombre y Tema de Colores de mi Tienda
+              </h2>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-deepSlate-700 mb-1">
+                Nombre comercial de la tienda
+              </label>
+              <input
+                type="text"
+                required
+                value={storeName}
+                onChange={(e) => setStoreName(e.target.value)}
+                placeholder="Ej. Boutique & Estudio Gabi"
+                className="w-full px-4 py-3 text-base font-extrabold rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white text-deepSlate-900"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-bold text-deepSlate-700 flex items-center gap-1.5">
+                  <Palette className="w-4 h-4 text-coral-500" />
+                  <span>Tema de paleta de colores</span>
+                </label>
+                <span className="text-[11px] font-semibold text-coral-600">
+                  Cambia en tiempo real
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {THEME_PALETTE_LIST.map((p) => {
+                  const isSelected = selectedTheme === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => handleThemeSelect(p.id)}
+                      className={`p-3 rounded-2xl border text-left transition-all flex flex-col gap-2 ${
+                        isSelected
+                          ? 'border-2 border-coral-500 bg-coral-50/60 shadow-2xs'
+                          : 'border-nacre-200 bg-white hover:border-nacre-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center -space-x-1">
+                          <span
+                            className="w-5 h-5 rounded-full border border-white"
+                            style={{ backgroundColor: p.primaryHex }}
+                          />
+                          <span
+                            className="w-5 h-5 rounded-full border border-white"
+                            style={{ backgroundColor: p.secondaryHex }}
+                          />
+                          <span
+                            className="w-5 h-5 rounded-full border border-white"
+                            style={{ backgroundColor: p.softHex }}
+                          />
+                        </div>
+                        {isSelected && (
+                          <span className="w-4 h-4 rounded-full bg-coral-500 text-white flex items-center justify-center">
+                            <Check className="w-2.5 h-2.5" />
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs font-extrabold text-deepSlate-900">{p.name}</p>
+                        <p className="text-[10px] text-deepSlate-500 leading-tight">
+                          {p.subtitle}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-nacre-200 flex justify-end">
+            <button
+              type="submit"
+              disabled={isSavingOwner}
+              className="min-h-[46px] px-6 rounded-xl text-sm font-bold text-white bg-coral-500 hover:bg-coral-600 shadow-sm inline-flex items-center gap-2 disabled:opacity-60"
+            >
+              {isSavingOwner ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Guardando en Supabase...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  <span>Guardar cambios de tienda y perfil</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </form>
+
+      {/* ==================================================================== */}
+      {/* SECCIÓN 2: GESTIÓN DE CUENTAS DE EMPLEADOS ASOCIADAS                 */}
+      {/* ==================================================================== */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Columna izquierda: Cupos y permisos */}
+        <div className="lg:col-span-5 space-y-4">
+          <div className="bg-white rounded-3xl border border-nacre-200 p-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-coral-50 border border-coral-200 text-coral-600 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-extrabold text-deepSlate-900">
+                  Cuentas de Empleados Asociadas
+                </h2>
+                <p className="text-xs text-deepSlate-500">
+                  Tú controlas su nombre de usuario y su contraseña.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2.5 text-xs">
+              <div className="p-3.5 rounded-2xl bg-coral-50/40 border border-coral-200 space-y-1">
+                <div className="flex items-center gap-2 font-extrabold text-deepSlate-900">
+                  <Eye className="w-4 h-4 text-coral-600" />
+                  <span>Cuenta Dueño (@{profile?.username})</span>
+                </div>
+                <p className="text-deepSlate-600 leading-relaxed">
+                  Personaliza la tienda, ve costos y ganancias, y administra usuarios y contraseñas de empleados.
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-nacre-50 border border-nacre-200 space-y-1">
+                <div className="flex items-center gap-2 font-extrabold text-deepSlate-900">
+                  <EyeOff className="w-4 h-4 text-deepSlate-600" />
+                  <span>Cuenta Empleado (Vendedor)</span>
+                </div>
+                <p className="text-deepSlate-600 leading-relaxed">
+                  No puede modificar nada de la configuración de cuenta ni ver costos o ganancias. Solo registra ventas y consulta stock.
+                </p>
+              </div>
+            </div>
+
+            {/* Cupos de empleados */}
+            <div className="p-4 rounded-2xl bg-nacre-50 border border-nacre-200 space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-bold text-deepSlate-700">Cuentas de empleado</span>
+                <span className="font-extrabold text-deepSlate-900">
+                  {sellers.length} de {allowedSellerSeats} activas
+                </span>
+              </div>
+              <div className="w-full h-2.5 rounded-full bg-nacre-200 overflow-hidden">
+                <div
+                  className="h-full bg-coral-500 rounded-full transition-all"
+                  style={{
+                    width: `${
+                      allowedSellerSeats > 0
+                        ? Math.min(100, (sellers.length / allowedSellerSeats) * 100)
+                        : 0
+                    }%`,
+                  }}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  updateTenantConfig({ extra_paid_profiles: extraPaid + 1 });
+                  setSuccessMsg('Se habilitó 1 cupo adicional de empleado en tu tienda.');
+                }}
+                className="w-full min-h-[44px] px-4 rounded-xl text-xs font-bold bg-white hover:bg-coral-50 text-coral-700 border border-coral-200 inline-flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Habilitar 1 espacio extra de empleado</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Columna derecha: Lista de empleados y gestión de usuario/contraseña */}
+        <div className="lg:col-span-7 bg-white rounded-3xl border border-nacre-200 p-6 space-y-6">
+          <div>
+            <h2 className="text-lg font-extrabold text-deepSlate-900">
+              Administrar Empleados ({sellers.length})
+            </h2>
+            <p className="text-xs text-deepSlate-500">
+              Configura el nombre de usuario, cambia o reinicia la contraseña de las cuentas de empleado asociadas.
+            </p>
+          </div>
+
+          {/* Lista de cuentas de empleados asociadas */}
+          {sellers.length === 0 ? (
+            <div className="p-6 text-center rounded-2xl border border-nacre-200 bg-nacre-50/50 space-y-1.5">
+              <Users className="w-7 h-7 text-deepSlate-400 mx-auto" />
+              <p className="text-sm font-extrabold text-deepSlate-900">
+                No tienes cuentas de empleado asociadas todavía
+              </p>
+              <p className="text-xs text-deepSlate-500">
+                Usa el formulario de abajo para crear una cuenta de empleado vinculada a tu tienda.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {sellers.map((emp) => {
+                const isEditing = editingEmployeeId === emp.id;
+                return (
+                  <div
+                    key={emp.id}
+                    className="p-4 rounded-2xl border border-nacre-200 bg-nacre-50/40 space-y-3"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-coral-50 border border-coral-200 text-coral-600 font-extrabold flex items-center justify-center shrink-0">
+                          {(emp.full_name || 'E').charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-extrabold text-deepSlate-900 truncate">
+                            {emp.full_name}
+                          </p>
+                          <div className="flex items-center gap-2 flex-wrap text-xs">
+                            <span className="font-mono font-bold text-coral-600">
+                              @{emp.username}
+                            </span>
+                            {emp.email && (
+                              <span className="text-deepSlate-400 truncate">({emp.email})</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-wrap shrink-0">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            isEditing ? setEditingEmployeeId(null) : startEditingEmployee(emp)
+                          }
+                          className="px-3 py-2 rounded-xl text-xs font-bold bg-white hover:bg-coral-50 text-deepSlate-800 border border-nacre-200 inline-flex items-center gap-1.5"
+                        >
+                          <KeyRound className="w-3.5 h-3.5 text-coral-500" />
+                          <span>{isEditing ? 'Cancelar' : 'Editar usuario / clave'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleResetEmployeePassword(emp)}
+                          disabled={isSavingEmployee}
+                          className="px-3 py-2 rounded-xl text-xs font-bold bg-coral-50 hover:bg-coral-100 text-coral-700 border border-coral-200 inline-flex items-center gap-1.5"
+                          title="Generar una contraseña temporal nueva para este empleado"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Reiniciar clave</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setEmployeeToDelete(emp)}
+                          className="p-2 rounded-xl text-deepSlate-400 hover:text-rose-600 hover:bg-rose-50"
+                          title="Eliminar cuenta de empleado"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {isEditing && (
+                      <form
+                        onSubmit={handleSaveEmployeeChanges}
+                        className="pt-3 border-t border-nacre-200 grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-3.5 rounded-xl"
+                      >
+                        <div>
+                          <label className="block text-[11px] font-bold text-deepSlate-600 mb-1">
+                            Nombre del empleado
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={empFullName}
+                            onChange={(e) => setEmpFullName(e.target.value)}
+                            className="w-full px-3 py-2 text-xs font-bold rounded-lg bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-deepSlate-600 mb-1">
+                            Nombre de usuario (@)
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={empUsername}
+                            onChange={(e) =>
+                              setEmpUsername(
+                                e.target.value.toLowerCase().replace(/[^a-z0-9_.-]/g, '_')
+                              )
+                            }
+                            className="w-full px-3 py-2 text-xs font-mono font-bold rounded-lg bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-deepSlate-600 mb-1">
+                            Nueva contraseña
+                          </label>
+                          <div className="relative">
+                            <input
+                              type={showEmpPassword ? 'text' : 'password'}
+                              placeholder="Opcional (mín. 6)"
+                              value={empNewPassword}
+                              onChange={(e) => setEmpNewPassword(e.target.value)}
+                              className="w-full pl-3 pr-8 py-2 text-xs font-mono rounded-lg bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowEmpPassword(!showEmpPassword)}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-deepSlate-400"
+                            >
+                              {showEmpPassword ? (
+                                <EyeOff className="w-3.5 h-3.5" />
+                              ) : (
+                                <Eye className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="sm:col-span-3 flex justify-end gap-2 pt-1">
+                          <button
+                            type="submit"
+                            disabled={isSavingEmployee}
+                            className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-coral-500 hover:bg-coral-600 inline-flex items-center gap-1.5"
+                          >
+                            {isSavingEmployee ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Check className="w-3.5 h-3.5" />
+                            )}
+                            <span>Guardar cambios del empleado</span>
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Formulario para crear nueva cuenta de empleado */}
+          <form
+            onSubmit={handleCreateEmployee}
+            className="p-4 rounded-2xl bg-nacre-50 border border-nacre-200 space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-extrabold uppercase tracking-wider text-deepSlate-700">
+                Crear nueva cuenta de empleado asociada
+              </p>
+              <span className="text-[11px] font-semibold text-deepSlate-500">
+                {remainingSellerSeats} {remainingSellerSeats === 1 ? 'cupo libre' : 'cupos libres'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <input
+                type="text"
+                placeholder="Nombre (ej. Andrea Caja)"
+                value={newEmpName}
+                onChange={(e) => setNewEmpName(e.target.value)}
+                className="px-3.5 py-2.5 text-xs font-bold rounded-xl bg-white border border-nacre-200 focus:outline-none focus:border-coral-500"
+              />
+              <div className="relative">
+                <AtSign className="w-3.5 h-3.5 text-coral-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="usuario_empleado"
+                  value={newEmpUsername}
+                  onChange={(e) =>
+                    setNewEmpUsername(
+                      e.target.value.toLowerCase().replace(/[^a-z0-9_.-]/g, '_')
+                    )
+                  }
+                  className="w-full pl-8 pr-3 py-2.5 text-xs font-mono font-bold rounded-xl bg-white border border-nacre-200 focus:outline-none focus:border-coral-500"
+                />
+              </div>
+              <div className="relative">
+                <input
+                  type={showNewEmpPass ? 'text' : 'password'}
+                  placeholder="Contraseña"
+                  value={newEmpPassword}
+                  onChange={(e) => setNewEmpPassword(e.target.value)}
+                  className="w-full pl-3.5 pr-8 py-2.5 text-xs font-mono rounded-xl bg-white border border-nacre-200 focus:outline-none focus:border-coral-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewEmpPass(!showNewEmpPass)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-deepSlate-400"
+                >
+                  {showNewEmpPass ? (
+                    <EyeOff className="w-3.5 h-3.5" />
+                  ) : (
+                    <Eye className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={isCreatingEmp}
+                className="min-h-[42px] px-5 rounded-xl text-xs font-bold text-white bg-coral-500 hover:bg-coral-600 inline-flex items-center gap-2 disabled:opacity-60"
+              >
+                {isCreatingEmp ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <UserPlus className="w-4 h-4" />
+                )}
+                <span>Crear cuenta de empleado</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      {/* ==================================================================== */}
+      {/* SECCIÓN 3: COMPARADOR DE PLANES                                      */}
+      {/* ==================================================================== */}
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-xl font-extrabold text-deepSlate-900">Tu plan y qué incluye cada uno</h2>
+          <p className="text-sm text-deepSlate-500 mt-0.5">
+            Resumen de capacidades y cuentas de empleado incluidas según el plan de tu tienda.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {([1, 2, 3] as PlanTier[]).map((tier) => {
+            const info = PLAN_INFO[tier];
+            const details = PLAN_FEATURES[tier];
+            const isCurrent = planTier === tier;
+
             return (
               <div
-                key={preset.id}
-                className={`p-4 rounded-2xl border flex flex-col justify-between transition-all ${
+                key={tier}
+                className={`rounded-3xl p-6 flex flex-col justify-between transition-all ${
                   isCurrent
-                    ? 'bg-coral-50/70 border-2 border-coral-500 shadow-sm'
-                    : 'bg-nacre-50/60 border-nacre-200 hover:bg-white'
+                    ? 'bg-coral-50/50 border-2 border-coral-500 shadow-md'
+                    : 'bg-white border border-nacre-200'
                 }`}
               >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-white text-coral-600 border border-coral-200">
-                      {preset.badge}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className={`text-xs font-extrabold uppercase tracking-wider px-3 py-1 rounded-full ${info.badgeColor}`}
+                    >
+                      Plan {info.name}
                     </span>
                     {isCurrent && (
-                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                        Activo
+                      <span className="inline-flex items-center gap-1 text-xs font-extrabold text-white bg-coral-500 px-3 py-1 rounded-full">
+                        <Check className="w-3.5 h-3.5" /> Plan activo
                       </span>
                     )}
                   </div>
-                  <h4 className="text-sm font-extrabold text-deepSlate-900">{preset.label}</h4>
-                  <p className="text-[11px] text-deepSlate-600 leading-relaxed">
-                    {preset.description}
-                  </p>
-                  <div className="p-2 rounded-xl bg-white border border-nacre-200 font-mono text-[10px] text-deepSlate-600 space-y-0.5">
-                    <div>
-                      <span className="text-deepSlate-400">Correo: </span>
-                      <strong className="text-deepSlate-900">{preset.email}</strong>
-                    </div>
-                    <div>
-                      <span className="text-deepSlate-400">Clave: </span>
-                      <strong className="text-coral-600">{preset.password}</strong>
-                    </div>
-                  </div>
-                </div>
 
-                <button
-                  onClick={() => {
-                    signInWithPreset(preset);
-                    setSuccessMsg(`Cambiado al perfil: ${preset.label}`);
-                  }}
-                  className={`mt-4 w-full py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                    isCurrent
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-coral-500 hover:bg-coral-600 text-white shadow-sm'
-                  }`}
-                >
-                  {isCurrent ? 'Perfil Actualmente Activo' : 'Activar Este Perfil'}
-                </button>
+                  <div>
+                    <h3 className="text-xl font-extrabold text-deepSlate-900">{info.name}</h3>
+                    <p className="text-sm font-semibold text-deepSlate-600 mt-1">{info.promise}</p>
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-nacre-50 border border-nacre-200 text-sm font-bold text-deepSlate-800 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-coral-500 shrink-0" />
+                    <span>Incluye: {details.people}</span>
+                  </div>
+
+                  <ul className="space-y-2.5 text-sm text-deepSlate-700">
+                    {details.bullets.map((b) => (
+                      <li key={b} className="flex items-start gap-2.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <span>{b}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             );
           })}
         </div>
-      </div>
+      </section>
 
-      {/* ==================================================================== */}
-      {/* SEAT LIMITS & TEAM MANAGEMENT (SPRINT 4)                             */}
-      {/* ==================================================================== */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Seat Breakdown Card */}
-        <div className="lg:col-span-5 bg-white rounded-3xl border border-nacre-200 p-6 shadow-xs space-y-5">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center">
-              <Users className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-base font-extrabold text-deepSlate-900">
-                Control de Asientos del Plan (Nivel {planTier})
-              </h3>
-              <p className="text-xs text-deepSlate-500">
-                Verificación según `max_owner_profiles`, `max_seller_profiles` y `extra_paid_profiles`
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-3 text-xs font-mono bg-nacre-50 p-4 rounded-2xl border border-nacre-200">
-            <div className="flex justify-between">
-              <span className="font-sans text-deepSlate-600">Perfiles Dueño Incluidos (`max_owner_profiles`):</span>
-              <strong className="text-deepSlate-900">{maxOwners}</strong>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-sans text-deepSlate-600">Perfiles Vendedor Incluidos (`max_seller_profiles`):</span>
-              <strong className="text-deepSlate-900">{maxSellers}</strong>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-sans text-coral-600 font-bold">Asientos Adicionales Pagados (`extra_paid_profiles`):</span>
-              <strong className="text-coral-600">+{extraPaid}</strong>
-            </div>
-            <div className="pt-2 border-t border-nacre-200 flex justify-between text-sm">
-              <span className="font-sans font-extrabold text-deepSlate-900">Capacidad Total de Usuarios:</span>
-              <strong className="text-emerald-600">{totalAllowedSeats} asientos</strong>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleAddExtraSeat}
-              className="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold bg-coral-50 hover:bg-coral-100 text-coral-700 border border-coral-200 flex items-center justify-center space-x-1.5"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Simular +1 Asiento Extra</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSimulatedTier(planTier === 3 ? 1 : ((planTier + 1) as 1 | 2 | 3))}
-              className="py-2.5 px-4 rounded-xl text-xs font-bold bg-nacre-100 hover:bg-nacre-200 text-deepSlate-700"
-            >
-              Cambiar Nivel ({planTier}/3)
-            </button>
-          </div>
-        </div>
-
-        {/* Team Members List & Create Form */}
-        <div className="lg:col-span-7 bg-white rounded-3xl border border-nacre-200 p-6 shadow-xs space-y-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-extrabold text-deepSlate-900">
-                Usuarios Registrados en la Empresa ({usedSeats} activos)
-              </h3>
-              <p className="text-xs text-deepSlate-500">
-                {remainingSeats > 0
-                  ? `Tienes ${remainingSeats} asiento(s) disponible(s) para asignar.`
-                  : 'Cupo de asientos lleno en este nivel.'}
-              </p>
-            </div>
-            <span className="text-[11px] font-mono font-bold text-deepSlate-500">
-              {currentOwners} Dueño(s) • {currentSellers} Vendedor(es)
-            </span>
-          </div>
-
-          {/* Add Member Form */}
-          <form
-            onSubmit={handleAddProfile}
-            className="p-4 rounded-2xl bg-nacre-50 border border-nacre-200 flex flex-col sm:flex-row items-center gap-3"
-          >
-            <input
-              type="text"
-              placeholder="Nombre completo del usuario (ej. Andrea Ventas)..."
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              className="flex-1 w-full px-3.5 py-2 text-xs rounded-xl bg-white border border-nacre-200 focus:outline-none focus:border-coral-500"
-            />
-            <select
-              value={newRole}
-              onChange={(e) => setNewRole(e.target.value as UserRole)}
-              className="w-full sm:w-44 px-3 py-2 text-xs font-bold rounded-xl bg-white border border-nacre-200"
-            >
-              <option value="seller">Rol: Vendedor</option>
-              <option value="global_owner">Rol: Dueño Global</option>
-            </select>
-            <button
-              type="submit"
-              className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold text-white bg-coral-500 hover:bg-coral-600 flex items-center justify-center space-x-1.5 shrink-0"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>Asignar Asiento</span>
-            </button>
-          </form>
-
-          {/* Profiles Table */}
-          <div className="divide-y divide-nacre-100 border border-nacre-200 rounded-2xl overflow-hidden">
-            {profiles.map((p) => (
-              <div
-                key={p.id}
-                className="p-3.5 flex items-center justify-between text-xs hover:bg-nacre-50/60"
-              >
-                <div className="flex items-center space-x-3">
-                  <div
-                    className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold ${
-                      p.role === 'global_owner'
-                        ? 'bg-coral-50 text-coral-600 border border-coral-200'
-                        : 'bg-nacre-100 text-deepSlate-700 border border-nacre-200'
-                    }`}
-                  >
-                    {p.role === 'global_owner' ? (
-                      <Eye className="w-4 h-4" />
-                    ) : (
-                      <EyeOff className="w-4 h-4" />
-                    )}
-                  </div>
-                  <div>
-                    <span className="font-extrabold text-deepSlate-900 block">{p.full_name}</span>
-                    <span className="text-[11px] text-deepSlate-400">
-                      {p.role === 'global_owner'
-                        ? 'Acceso total a costos, márgenes, P&L y configuración'
-                        : 'Vendedor: costos, márgenes y finanzas ocultos'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setSimulatedRole(p.role)}
-                    className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-nacre-100 hover:bg-coral-50 hover:text-coral-600 text-deepSlate-700"
-                  >
-                    Probar Vista
-                  </button>
-                  <button
-                    onClick={() => handleRemoveProfile(p.id)}
-                    className="p-1.5 text-deepSlate-300 hover:text-rose-600"
-                    title="Liberar asiento"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-      </div>
+      <ConfirmDialog
+        isOpen={!!employeeToDelete}
+        title="¿Eliminar cuenta de empleado?"
+        message={
+          <>
+            Vas a eliminar la cuenta de acceso de <strong>{employeeToDelete?.full_name}</strong> (@
+            {employeeToDelete?.username}) de tu tienda.
+          </>
+        }
+        confirmLabel="Sí, eliminar cuenta"
+        cancelLabel="Cancelar"
+        onCancel={() => setEmployeeToDelete(null)}
+        onConfirm={handleConfirmDeleteEmployee}
+      />
     </div>
   );
 };

@@ -21,6 +21,7 @@ import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
 import { WhatsAppFloatingButton } from '../components/WhatsAppFloatingButton';
 import { PricingCardsSection } from '../components/PricingCard';
+import { OFFICIAL_WHATSAPP_NUMBER } from '../data/realInventoryData';
 
 interface DemoProduct {
   sku: string;
@@ -96,7 +97,7 @@ export const LandingPage: React.FC = () => {
 
   const handleWhatsAppContact = (msg?: string) => {
     const text = encodeURIComponent(msg || 'Hola Gabi Studio! Deseo solicitar acceso y asesoría comercial para mi tienda.');
-    window.open(`https://wa.me/50588888888?text=${text}`, '_blank');
+    window.open(`https://wa.me/${OFFICIAL_WHATSAPP_NUMBER}?text=${text}`, '_blank');
   };
 
   const faqs = [

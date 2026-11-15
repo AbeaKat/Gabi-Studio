@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS public.tenants (
     max_owner_profiles INT NOT NULL DEFAULT 1,
     max_seller_profiles INT NOT NULL DEFAULT 0,
     extra_paid_profiles INT NOT NULL DEFAULT 0,
+    theme_palette TEXT NOT NULL DEFAULT 'coral' CHECK (theme_palette IN ('coral', 'emerald', 'sapphire', 'violet', 'amber', 'rose')),
+    onboarding_completed BOOLEAN NOT NULL DEFAULT false,
+    logo_url TEXT,
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -29,6 +32,10 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     full_name TEXT NOT NULL,
+    username TEXT UNIQUE,
+    email TEXT,
+    avatar_url TEXT,
+    onboarding_completed BOOLEAN NOT NULL DEFAULT false,
     role TEXT NOT NULL CHECK (role IN ('global_owner', 'seller')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -122,12 +129,47 @@ CREATE TABLE IF NOT EXISTS public.sales_items (
     exchange_rate_snapshot NUMERIC(10, 4) NOT NULL DEFAULT 36.6200,
     net_profit_usd NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
     payment_method TEXT NOT NULL DEFAULT 'cash_nio' CHECK (payment_method IN ('cash_nio', 'cash_usd', 'transfer_bac', 'transfer_lafise', 'transfer_banpro', 'pos_card', 'credit_layaway')),
+    abono_payment_method TEXT CHECK (abono_payment_method IN ('cash_nio', 'cash_usd', 'transfer_bac', 'transfer_lafise', 'transfer_banpro', 'pos_card', 'credit_layaway')),
     customer_name TEXT,
     customer_phone TEXT,
     amount_paid_nio NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
     balance_due_nio NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
     payment_status TEXT NOT NULL DEFAULT 'paid' CHECK (payment_status IN ('paid', 'partial', 'pending')),
     due_date DATE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ==============================================================================
+-- 3B. GASTOS OPERATIVOS (NIVEL 2+) Y KARDEX DE BODEGA (NIVEL 3)
+-- ==============================================================================
+
+-- 3B.1 Tabla: operating_expenses (Gastos Operativos del Mes)
+CREATE TABLE IF NOT EXISTS public.operating_expenses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+    category TEXT NOT NULL DEFAULT 'otros' CHECK (category IN ('publicidad', 'empaque', 'envio_local', 'renta_servicios', 'comisiones', 'otros')),
+    description TEXT NOT NULL,
+    amount_usd NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    amount_nio NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 3B.2 Tabla: kardex_movements (Auditoría de Bodega, Mermas y Consignación)
+CREATE TABLE IF NOT EXISTS public.kardex_movements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+    product_id UUID REFERENCES public.products(id) ON DELETE SET NULL,
+    sku TEXT NOT NULL,
+    product_name TEXT NOT NULL,
+    movement_type TEXT NOT NULL CHECK (movement_type IN ('entrada_compra', 'ajuste_conteo', 'merma_dano', 'consignacion_salida', 'consignacion_retorno')),
+    location TEXT NOT NULL DEFAULT 'Bodega Principal',
+    quantity_delta INT NOT NULL,
+    stock_before INT NOT NULL,
+    stock_after INT NOT NULL,
+    unit_cost_usd NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    reason TEXT NOT NULL,
+    created_by_name TEXT NOT NULL DEFAULT 'Dirección General',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -147,6 +189,10 @@ CREATE INDEX IF NOT EXISTS idx_sales_headers_date ON public.sales_headers(sale_d
 CREATE INDEX IF NOT EXISTS idx_sales_items_tenant ON public.sales_items(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_sales_items_header ON public.sales_items(sale_header_id);
 CREATE INDEX IF NOT EXISTS idx_sales_items_product ON public.sales_items(product_id);
+CREATE INDEX IF NOT EXISTS idx_operating_expenses_tenant ON public.operating_expenses(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_operating_expenses_date ON public.operating_expenses(expense_date);
+CREATE INDEX IF NOT EXISTS idx_kardex_movements_tenant ON public.kardex_movements(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_kardex_movements_product ON public.kardex_movements(product_id);
 
 -- ==============================================================================
 -- 5. FUNCIONES Y TRIGGERS AUTOMÁTICOS
@@ -235,6 +281,8 @@ ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.price_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sales_headers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sales_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.operating_expenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.kardex_movements ENABLE ROW LEVEL SECURITY;
 
 -- Políticas para TENANTS
 CREATE POLICY "Users can read own tenant"
@@ -333,6 +381,40 @@ CREATE POLICY "Tenant isolation for sales_items UPDATE"
 
 CREATE POLICY "Tenant isolation for sales_items DELETE"
     ON public.sales_items FOR DELETE
+    USING (tenant_id = public.current_user_tenant_id());
+
+-- Políticas para OPERATING_EXPENSES
+CREATE POLICY "Tenant isolation for operating_expenses SELECT"
+    ON public.operating_expenses FOR SELECT
+    USING (tenant_id = public.current_user_tenant_id());
+
+CREATE POLICY "Tenant isolation for operating_expenses INSERT"
+    ON public.operating_expenses FOR INSERT
+    WITH CHECK (tenant_id = public.current_user_tenant_id());
+
+CREATE POLICY "Tenant isolation for operating_expenses UPDATE"
+    ON public.operating_expenses FOR UPDATE
+    USING (tenant_id = public.current_user_tenant_id());
+
+CREATE POLICY "Tenant isolation for operating_expenses DELETE"
+    ON public.operating_expenses FOR DELETE
+    USING (tenant_id = public.current_user_tenant_id());
+
+-- Políticas para KARDEX_MOVEMENTS
+CREATE POLICY "Tenant isolation for kardex_movements SELECT"
+    ON public.kardex_movements FOR SELECT
+    USING (tenant_id = public.current_user_tenant_id());
+
+CREATE POLICY "Tenant isolation for kardex_movements INSERT"
+    ON public.kardex_movements FOR INSERT
+    WITH CHECK (tenant_id = public.current_user_tenant_id());
+
+CREATE POLICY "Tenant isolation for kardex_movements UPDATE"
+    ON public.kardex_movements FOR UPDATE
+    USING (tenant_id = public.current_user_tenant_id());
+
+CREATE POLICY "Tenant isolation for kardex_movements DELETE"
+    ON public.kardex_movements FOR DELETE
     USING (tenant_id = public.current_user_tenant_id());
 
 -- ==============================================================================

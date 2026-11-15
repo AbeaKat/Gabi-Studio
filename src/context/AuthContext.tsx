@@ -1,13 +1,58 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
-import { Profile, Tenant, PlanTier, UserRole, TestAccountPreset } from '../types';
 import {
-  TEST_ACCOUNT_PRESETS,
+  supabase,
+  supabaseAdmin,
+  mapAuthUserToProfile,
+  resolveLoginIdentifierToEmail,
+  fetchCloudTenantConfig,
+  saveCloudTenantConfig,
+  listTenantTeamProfiles,
+  isUsernameTaken,
+  uploadAvatarToSupabase,
+  updateEmployeeInSupabase,
+  createEmployeeInSupabase,
+  deleteEmployeeInSupabase,
+} from '../lib/supabase';
+import {
+  Profile,
+  Tenant,
+  PlanTier,
+  UserRole,
+  TestAccountPreset,
+  ThemePaletteId,
+} from '../types';
+import {
   TENANT_STELLA_ID,
   DEFAULT_EXCHANGE_RATE,
   ensureRealInventorySeeded,
+  hydrateStoreFromSupabaseCloud,
 } from '../data/realInventoryData';
+import { applyThemePalette } from '../lib/themes';
+
+export interface OnboardingPayload {
+  storeName: string;
+  themePalette: ThemePaletteId;
+  exchangeRateNio?: number;
+  ownerFullName: string;
+  ownerUsername: string;
+  ownerAvatarUrl?: string;
+  employeeUpdates?: Array<{
+    id: string;
+    username: string;
+    full_name: string;
+    password?: string;
+  }>;
+}
+
+export interface StoreAndOwnerUpdatePayload {
+  storeName?: string;
+  themePalette?: ThemePaletteId;
+  ownerFullName?: string;
+  ownerUsername?: string;
+  ownerAvatarUrl?: string;
+  ownerNewPassword?: string;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -15,35 +60,64 @@ interface AuthContextType {
   tenant: Tenant | null;
   planTier: PlanTier;
   role: UserRole;
+  teamMembers: Profile[];
   isLoading: boolean;
   error: string | null;
-  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signInWithPreset: (preset: TestAccountPreset) => void;
+  needsOnboarding: boolean;
+  isOnboardingOpen: boolean;
+  openOnboardingModal: () => void;
+  closeOnboardingModal: () => void;
+  signIn: (identifier: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signInWithPreset: (preset: TestAccountPreset) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  refreshTeamMembers: () => Promise<void>;
   updateExchangeRate: (newRate: number) => Promise<{ success: boolean; error?: string }>;
+  updateTenantConfig: (updates: Partial<Tenant>) => void;
+  completeOwnerOnboarding: (
+    payload: OnboardingPayload
+  ) => Promise<{ success: boolean; error?: string }>;
+  updateStoreAndOwnerProfile: (
+    payload: StoreAndOwnerUpdatePayload
+  ) => Promise<{ success: boolean; error?: string }>;
+  uploadProfilePhoto: (file: File) => Promise<{ url?: string; error?: string }>;
+  updateEmployeeAccount: (
+    employeeId: string,
+    updates: { username?: string; full_name?: string; password?: string; avatar_url?: string }
+  ) => Promise<{ success: boolean; profile?: Profile; error?: string }>;
+  createEmployeeAccount: (params: {
+    full_name: string;
+    username: string;
+    password: string;
+    email?: string;
+  }) => Promise<{ success: boolean; profile?: Profile; error?: string }>;
+  deleteEmployeeAccount: (employeeId: string) => Promise<{ success: boolean; error?: string }>;
+  resetOwnerOnboardingForTest: () => Promise<void>;
   setSimulatedRole: (role: UserRole) => void;
   setSimulatedTier: (tier: PlanTier) => void;
-  updateTenantConfig: (updates: Partial<Tenant>) => void;
 }
 
-const DEFAULT_DEMO_TENANT: Tenant = {
+const DEFAULT_FALLBACK_TENANT: Tenant = {
   id: TENANT_STELLA_ID,
-  name: 'Mi Empresa Demo',
+  name: 'Mi Tienda',
   plan_tier: 3,
   exchange_rate_nio: DEFAULT_EXCHANGE_RATE,
   max_owner_profiles: 1,
   max_seller_profiles: 2,
-  extra_paid_profiles: 1,
+  extra_paid_profiles: 0,
   is_active: true,
+  theme_palette: 'coral',
+  onboarding_completed: false,
   created_at: new Date().toISOString(),
 };
 
-const DEFAULT_DEMO_PROFILE: Profile = {
+const DEFAULT_FALLBACK_PROFILE: Profile = {
   id: '00000000-0000-0000-0000-000000000099',
   tenant_id: TENANT_STELLA_ID,
-  full_name: 'Dirección General (Dueño)',
+  full_name: 'Dirección General',
+  username: 'dueno_pro',
   role: 'global_owner',
+  onboarding_completed: false,
   created_at: new Date().toISOString(),
 };
 
@@ -53,112 +127,96 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [tenant, setTenant] = useState<Tenant | null>(null);
-  const [simulatedRole, setSimulatedRoleState] = useState<UserRole | null>(null);
-  const [simulatedTier, setSimulatedTierState] = useState<PlanTier | null>(null);
+  const [teamMembers, setTeamMembers] = useState<Profile[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
 
-  const applyPresetSession = (preset: TestAccountPreset) => {
-    ensureRealInventorySeeded();
-    const mockUser: any = {
-      id: `user-${preset.id}`,
-      email: preset.email,
-      aud: 'authenticated',
-      role: 'authenticated',
-    };
-    const mockProfile: Profile = {
-      id: `user-${preset.id}`,
-      tenant_id: TENANT_STELLA_ID,
-      full_name: preset.full_name,
-      role: preset.role,
-      created_at: new Date().toISOString(),
-    };
-    const mockTenant: Tenant = {
-      id: TENANT_STELLA_ID,
-      name: preset.tenant_name,
-      plan_tier: preset.plan_tier,
-      exchange_rate_nio: tenant?.exchange_rate_nio || DEFAULT_EXCHANGE_RATE,
-      max_owner_profiles: preset.max_owner_profiles,
-      max_seller_profiles: preset.max_seller_profiles,
-      extra_paid_profiles: preset.extra_paid_profiles,
-      is_active: true,
-      created_at: new Date().toISOString(),
-    };
-
-    localStorage.setItem(
-      'gabi_studio_demo_session',
-      JSON.stringify({ user: mockUser, profile: mockProfile, tenant: mockTenant })
-    );
-    setUser(mockUser);
-    setProfile(mockProfile);
-    setTenant(mockTenant);
-    setSimulatedRoleState(null);
-    setSimulatedTierState(null);
-  };
-
-  const fetchProfileAndTenant = async (currentUser: User) => {
+  const loadFullUserSession = async (currentUser: User) => {
     try {
       setError(null);
-      const { data: profileData, error: profileErr } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', currentUser.id)
-        .maybeSingle();
 
-      if (profileErr) {
-        console.warn('Could not fetch user profile:', profileErr.message);
+      // Fetch latest user record from Admin API so user_metadata is always fresh
+      let freshUser = currentUser;
+      try {
+        const { data: adminUserData } = await supabaseAdmin.auth.admin.getUserById(currentUser.id);
+        if (adminUserData?.user) {
+          freshUser = adminUserData.user;
+        }
+      } catch {
+        // Use session user
       }
 
-      if (profileData) {
-        setProfile(profileData as Profile);
+      const mappedProfile = mapAuthUserToProfile(freshUser, TENANT_STELLA_ID);
 
-        const { data: tenantData, error: tenantErr } = await supabase
-          .from('tenants')
+      // Check if Postgres 'profiles' row has overrides
+      try {
+        const { data: dbProfile } = await supabase
+          .from('profiles')
           .select('*')
-          .eq('id', profileData.tenant_id)
+          .eq('id', freshUser.id)
           .maybeSingle();
 
-        if (tenantErr) {
-          console.warn('Could not fetch tenant data:', tenantErr.message);
-        } else if (tenantData) {
-          setTenant(tenantData as Tenant);
+        if (dbProfile) {
+          if (dbProfile.full_name) mappedProfile.full_name = dbProfile.full_name;
+          if (dbProfile.username) mappedProfile.username = dbProfile.username;
+          if (dbProfile.avatar_url) mappedProfile.avatar_url = dbProfile.avatar_url;
+          if (dbProfile.role) mappedProfile.role = dbProfile.role as UserRole;
         }
+      } catch {
+        // Ignore if table not migrated yet
+      }
+
+      const loadedTenant = await fetchCloudTenantConfig(
+        mappedProfile.tenant_id,
+        freshUser.user_metadata
+      );
+
+      // Ensure plan_tier matches owner's account tier if logging in with a tier-specific owner account
+      if (mappedProfile.role === 'global_owner' && freshUser.user_metadata?.plan_tier) {
+        const ownerTier = Number(freshUser.user_metadata.plan_tier) as PlanTier;
+        loadedTenant.plan_tier = ownerTier;
+        loadedTenant.max_seller_profiles = ownerTier === 1 ? 0 : ownerTier === 2 ? 1 : 2;
+      }
+
+      await hydrateStoreFromSupabaseCloud(loadedTenant.id);
+      const members = await listTenantTeamProfiles(loadedTenant.id);
+
+      setUser(freshUser);
+      setProfile(mappedProfile);
+      setTenant(loadedTenant);
+      setTeamMembers(members);
+
+      applyThemePalette(loadedTenant.theme_palette || 'coral');
+
+      // Open onboarding automatically on first login for Owner accounts
+      if (mappedProfile.role === 'global_owner' && !mappedProfile.onboarding_completed) {
+        setIsOnboardingOpen(true);
       } else {
-        setProfile({
-          ...DEFAULT_DEMO_PROFILE,
-          id: currentUser.id,
-          full_name: currentUser.email?.split('@')[0] || 'Usuario',
-        });
-        setTenant(DEFAULT_DEMO_TENANT);
+        setIsOnboardingOpen(false);
       }
     } catch (err: any) {
-      console.error('Error fetching user context:', err);
-      setProfile(DEFAULT_DEMO_PROFILE);
-      setTenant(DEFAULT_DEMO_TENANT);
+      console.error('Error loading user session from Supabase:', err);
     }
   };
 
   useEffect(() => {
     let mounted = true;
+    // Remove any legacy demo session key
+    localStorage.removeItem('gabi_studio_demo_session');
+    localStorage.removeItem('gabi_studio_demo_user');
     ensureRealInventorySeeded();
 
     const initAuth = async () => {
       try {
-        // First check if a local preset demo session is active
-        const savedSession = localStorage.getItem('gabi_studio_demo_session');
-        if (savedSession && mounted) {
-          const parsed = JSON.parse(savedSession);
-          setUser(parsed.user);
-          setProfile(parsed.profile);
-          setTenant(parsed.tenant);
-          setIsLoading(false);
-          return;
-        }
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
-        const { data: { session } } = await supabase.auth.getSession();
         if (session?.user && mounted) {
-          setUser(session.user);
-          await fetchProfileAndTenant(session.user);
+          await loadFullUserSession(session.user);
+        } else {
+          applyThemePalette('coral');
         }
       } catch (err) {
         console.error('Auth initialization error:', err);
@@ -169,22 +227,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initAuth();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (session?.user) {
-          setUser(session.user);
-          await fetchProfileAndTenant(session.user);
-        } else {
-          const savedSession = localStorage.getItem('gabi_studio_demo_session');
-          if (!savedSession) {
-            setUser(null);
-            setProfile(null);
-            setTenant(null);
-          }
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+      if (session?.user) {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+          await loadFullUserSession(session.user);
         }
-        setIsLoading(false);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setProfile(null);
+        setTenant(null);
+        setTeamMembers([]);
+        setIsOnboardingOpen(false);
+        applyThemePalette('coral');
       }
-    );
+      setIsLoading(false);
+    });
 
     return () => {
       mounted = false;
@@ -192,69 +250,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const signInWithPreset = (preset: TestAccountPreset) => {
-    applyPresetSession(preset);
-  };
-
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (identifier: string, password: string) => {
     setIsLoading(true);
     setError(null);
     try {
-      const normalizedEmail = email.trim().toLowerCase();
-
-      // 1. Check if email matches one of the Stella & Georgina test profiles
-      const matchedPreset = TEST_ACCOUNT_PRESETS.find(
-        (p) => p.email.toLowerCase() === normalizedEmail
-      );
-
-      if (matchedPreset && (password === matchedPreset.password || password === 'demo1234' || password === 'stella2026')) {
-        applyPresetSession(matchedPreset);
-        setIsLoading(false);
-        return { success: true };
+      const resolved = await resolveLoginIdentifierToEmail(identifier);
+      if (resolved.error || !resolved.email) {
+        const msg = resolved.error || 'Usuario o correo inválido.';
+        setError(msg);
+        return { success: false, error: msg };
       }
 
-      // 2. Also allow quick tier keywords in email
-      if (normalizedEmail.includes('nivel1') || normalizedEmail.includes('tier1')) {
-        applyPresetSession(TEST_ACCOUNT_PRESETS[0]);
-        setIsLoading(false);
-        return { success: true };
-      }
-      if (normalizedEmail.includes('vendedor') || normalizedEmail.includes('seller')) {
-        applyPresetSession(TEST_ACCOUNT_PRESETS[2]);
-        setIsLoading(false);
-        return { success: true };
-      }
-      if (normalizedEmail.includes('nivel2') || normalizedEmail.includes('tier2')) {
-        applyPresetSession(TEST_ACCOUNT_PRESETS[1]);
-        setIsLoading(false);
-        return { success: true };
-      }
-      if (normalizedEmail.includes('nivel3') || normalizedEmail.includes('tier3') || normalizedEmail.includes('demo') || password === 'stella2026' || password === 'demo1234') {
-        applyPresetSession(TEST_ACCOUNT_PRESETS[3]);
-        setIsLoading(false);
-        return { success: true };
-      }
-
-      // 3. Try real Supabase Auth
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
+        email: resolved.email,
         password,
       });
 
-      if (signInError) {
-        setError(signInError.message);
-        return { success: false, error: signInError.message };
+      if (signInError || !data.user) {
+        const msg =
+          signInError?.message === 'Invalid login credentials'
+            ? 'Usuario/correo o contraseña incorrectos. Verifica tus datos e intenta de nuevo.'
+            : signInError?.message || 'No se pudo iniciar sesión.';
+        setError(msg);
+        return { success: false, error: msg };
       }
 
-      if (data.user) {
-        localStorage.removeItem('gabi_studio_demo_session');
-        setUser(data.user);
-        await fetchProfileAndTenant(data.user);
-      }
-
+      await loadFullUserSession(data.user);
       return { success: true };
     } catch (err: any) {
-      const msg = err?.message || 'Error al iniciar sesión';
+      const msg = err?.message || 'Error al iniciar sesión en Supabase.';
       setError(msg);
       return { success: false, error: msg };
     } finally {
@@ -262,17 +286,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signInWithPreset = async (preset: TestAccountPreset) => {
+    return signIn(preset.email, preset.password);
+  };
+
   const signOut = async () => {
     setIsLoading(true);
     try {
       localStorage.removeItem('gabi_studio_demo_session');
-      localStorage.removeItem('gabi_studio_demo_user');
       await supabase.auth.signOut();
       setUser(null);
       setProfile(null);
       setTenant(null);
-      setSimulatedRoleState(null);
-      setSimulatedTierState(null);
+      setTeamMembers([]);
+      setIsOnboardingOpen(false);
+      applyThemePalette('coral');
     } catch (err) {
       console.error('Error signing out:', err);
     } finally {
@@ -282,64 +310,378 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshProfile = async () => {
     if (user) {
-      await fetchProfileAndTenant(user);
+      await loadFullUserSession(user);
     }
   };
 
+  const refreshTeamMembers = async () => {
+    const tId = tenant?.id || profile?.tenant_id || TENANT_STELLA_ID;
+    const members = await listTenantTeamProfiles(tId);
+    setTeamMembers(members);
+  };
+
   const updateTenantConfig = (updates: Partial<Tenant>) => {
+    if (profile?.role === 'seller') return; // Employees cannot change tenant config
     setTenant((prev) => {
-      const next = prev ? { ...prev, ...updates } : { ...DEFAULT_DEMO_TENANT, ...updates };
-      const savedSession = localStorage.getItem('gabi_studio_demo_session');
-      if (savedSession) {
-        const parsed = JSON.parse(savedSession);
-        localStorage.setItem(
-          'gabi_studio_demo_session',
-          JSON.stringify({ ...parsed, tenant: next })
-        );
+      const next = prev ? { ...prev, ...updates } : { ...DEFAULT_FALLBACK_TENANT, ...updates };
+      if (updates.theme_palette) {
+        applyThemePalette(updates.theme_palette);
       }
+      saveCloudTenantConfig(next.id, next);
       return next;
     });
   };
 
   const updateExchangeRate = async (newRate: number) => {
+    if (profile?.role === 'seller') {
+      return {
+        success: false,
+        error: 'Las cuentas de empleado no tienen permiso para modificar la tasa de cambio.',
+      };
+    }
     if (newRate <= 0 || isNaN(newRate)) {
-      return { success: false, error: 'La tasa de cambio debe ser un número positivo mayor que 0.' };
+      return {
+        success: false,
+        error: 'La tasa de cambio debe ser un número positivo mayor que 0.',
+      };
     }
 
     try {
-      const currentTenantId = tenant?.id || DEFAULT_DEMO_TENANT.id;
-
-      await supabase
-        .from('tenants')
-        .update({ exchange_rate_nio: newRate })
-        .eq('id', currentTenantId);
-
+      const currentTenantId = tenant?.id || DEFAULT_FALLBACK_TENANT.id;
       updateTenantConfig({ exchange_rate_nio: newRate });
+
+      if (user) {
+        const meta = user.user_metadata || {};
+        await supabaseAdmin.auth.admin.updateUserById(user.id, {
+          user_metadata: { ...meta, exchange_rate_nio: newRate },
+        });
+      }
+
+      await saveCloudTenantConfig(currentTenantId, {
+        ...tenant,
+        exchange_rate_nio: newRate,
+      });
+
       return { success: true };
     } catch (err: any) {
-      updateTenantConfig({ exchange_rate_nio: newRate });
-      return { success: true };
+      return { success: false, error: err?.message || 'Error al guardar tasa de cambio.' };
     }
   };
 
-  const setSimulatedRole = (newRole: UserRole) => {
-    setSimulatedRoleState(newRole);
+  const uploadProfilePhoto = async (file: File) => {
+    if (!user) return { error: 'No hay sesión activa.' };
+    if (profile?.role === 'seller') {
+      return { error: 'Las cuentas de empleado no pueden modificar la configuración de perfil.' };
+    }
+    return uploadAvatarToSupabase(user.id, file);
   };
 
-  const setSimulatedTier = (newTier: PlanTier) => {
-    setSimulatedTierState(newTier);
-    const maxSellers = newTier === 1 ? 0 : newTier === 2 ? 1 : 2;
-    updateTenantConfig({
-      plan_tier: newTier,
-      max_owner_profiles: 1,
-      max_seller_profiles: maxSellers,
+  const completeOwnerOnboarding = async (payload: OnboardingPayload) => {
+    if (!user || !profile) {
+      return { success: false, error: 'No hay sesión activa.' };
+    }
+    if (profile.role === 'seller') {
+      return {
+        success: false,
+        error: 'Las cuentas de empleado no pueden realizar configuración de tienda.',
+      };
+    }
+
+    const cleanStoreName = payload.storeName.trim();
+    const cleanOwnerName = payload.ownerFullName.trim();
+    const cleanUsername = payload.ownerUsername
+      .trim()
+      .replace(/^@/, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9_.-]/g, '_');
+
+    if (!cleanStoreName) {
+      return { success: false, error: 'Por favor escribe el nombre de tu tienda.' };
+    }
+    if (!cleanOwnerName) {
+      return { success: false, error: 'Por favor escribe tu nombre.' };
+    }
+    if (!cleanUsername || cleanUsername.length < 3) {
+      return {
+        success: false,
+        error: 'Tu nombre de usuario debe tener al menos 3 caracteres.',
+      };
+    }
+
+    const taken = await isUsernameTaken(cleanUsername, user.id);
+    if (taken) {
+      return {
+        success: false,
+        error: `El nombre de usuario "@${cleanUsername}" ya está ocupado. Elige otro.`,
+      };
+    }
+
+    try {
+      const currentMeta = user.user_metadata || {};
+      const nextRate =
+        payload.exchangeRateNio && payload.exchangeRateNio > 0
+          ? payload.exchangeRateNio
+          : tenant?.exchange_rate_nio || DEFAULT_EXCHANGE_RATE;
+
+      const nextMeta = {
+        ...currentMeta,
+        full_name: cleanOwnerName,
+        username: cleanUsername,
+        avatar_url:
+          payload.ownerAvatarUrl !== undefined
+            ? payload.ownerAvatarUrl
+            : profile.avatar_url || '',
+        store_name: cleanStoreName,
+        theme_palette: payload.themePalette,
+        exchange_rate_nio: nextRate,
+        onboarding_completed: true,
+      };
+
+      const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+        user_metadata: nextMeta,
+      });
+
+      if (updateErr) {
+        return { success: false, error: updateErr.message };
+      }
+
+      const tenantId = tenant?.id || profile.tenant_id || TENANT_STELLA_ID;
+      const updatedTenant: Tenant = {
+        ...(tenant || DEFAULT_FALLBACK_TENANT),
+        id: tenantId,
+        name: cleanStoreName,
+        theme_palette: payload.themePalette,
+        exchange_rate_nio: nextRate,
+        onboarding_completed: true,
+      };
+
+      await saveCloudTenantConfig(tenantId, updatedTenant);
+
+      // Update any employee accounts configured during onboarding
+      if (payload.employeeUpdates && payload.employeeUpdates.length > 0) {
+        for (const emp of payload.employeeUpdates) {
+          if (emp.id && emp.username.trim()) {
+            await updateEmployeeInSupabase(emp.id, {
+              username: emp.username,
+              full_name: emp.full_name,
+              password: emp.password && emp.password.trim().length >= 6 ? emp.password : undefined,
+            });
+          }
+        }
+      }
+
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              full_name: cleanOwnerName,
+              username: cleanUsername,
+              avatar_url: nextMeta.avatar_url,
+              onboarding_completed: true,
+            }
+          : prev
+      );
+      setTenant(updatedTenant);
+      applyThemePalette(payload.themePalette);
+      setIsOnboardingOpen(false);
+      await refreshTeamMembers();
+
+      return { success: true };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.message || 'Error al guardar la configuración en Supabase.',
+      };
+    }
+  };
+
+  const updateStoreAndOwnerProfile = async (payload: StoreAndOwnerUpdatePayload) => {
+    if (!user || !profile) {
+      return { success: false, error: 'No hay sesión activa.' };
+    }
+    if (profile.role === 'seller') {
+      return {
+        success: false,
+        error: 'El usuario de cuenta empleado no puede modificar la configuración de la cuenta.',
+      };
+    }
+
+    try {
+      const currentMeta = user.user_metadata || {};
+      const nextUsername =
+        payload.ownerUsername !== undefined
+          ? payload.ownerUsername
+              .trim()
+              .replace(/^@/, '')
+              .toLowerCase()
+              .replace(/[^a-z0-9_.-]/g, '_')
+          : profile.username || currentMeta.username;
+
+      if (payload.ownerUsername !== undefined) {
+        if (!nextUsername || nextUsername.length < 3) {
+          return {
+            success: false,
+            error: 'Tu nombre de usuario debe tener al menos 3 caracteres.',
+          };
+        }
+        const taken = await isUsernameTaken(nextUsername, user.id);
+        if (taken) {
+          return {
+            success: false,
+            error: `El nombre de usuario "@${nextUsername}" ya está en uso.`,
+          };
+        }
+      }
+
+      if (payload.ownerNewPassword && payload.ownerNewPassword.trim().length < 6) {
+        return {
+          success: false,
+          error: 'La nueva contraseña debe tener al menos 6 caracteres.',
+        };
+      }
+
+      const nextStoreName =
+        payload.storeName !== undefined ? payload.storeName.trim() : tenant?.name || 'Mi Tienda';
+      const nextTheme =
+        payload.themePalette !== undefined
+          ? payload.themePalette
+          : tenant?.theme_palette || 'coral';
+      const nextFullName =
+        payload.ownerFullName !== undefined ? payload.ownerFullName.trim() : profile.full_name;
+      const nextAvatar =
+        payload.ownerAvatarUrl !== undefined ? payload.ownerAvatarUrl : profile.avatar_url || '';
+
+      const nextMeta = {
+        ...currentMeta,
+        full_name: nextFullName,
+        username: nextUsername,
+        avatar_url: nextAvatar,
+        store_name: nextStoreName,
+        theme_palette: nextTheme,
+        onboarding_completed: true,
+      };
+
+      const adminPayload: { user_metadata: Record<string, any>; password?: string } = {
+        user_metadata: nextMeta,
+      };
+      if (payload.ownerNewPassword && payload.ownerNewPassword.trim().length >= 6) {
+        adminPayload.password = payload.ownerNewPassword.trim();
+      }
+
+      const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(
+        user.id,
+        adminPayload
+      );
+      if (updateErr) {
+        return { success: false, error: updateErr.message };
+      }
+
+      const tenantId = tenant?.id || profile.tenant_id || TENANT_STELLA_ID;
+      const updatedTenant: Tenant = {
+        ...(tenant || DEFAULT_FALLBACK_TENANT),
+        id: tenantId,
+        name: nextStoreName,
+        theme_palette: nextTheme,
+        onboarding_completed: true,
+      };
+
+      await saveCloudTenantConfig(tenantId, updatedTenant);
+
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              full_name: nextFullName,
+              username: nextUsername,
+              avatar_url: nextAvatar,
+              onboarding_completed: true,
+            }
+          : prev
+      );
+      setTenant(updatedTenant);
+      applyThemePalette(nextTheme);
+      await refreshTeamMembers();
+
+      return { success: true };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.message || 'No se pudieron guardar los cambios en Supabase.',
+      };
+    }
+  };
+
+  const updateEmployeeAccount = async (
+    employeeId: string,
+    updates: { username?: string; full_name?: string; password?: string; avatar_url?: string }
+  ) => {
+    if (profile?.role === 'seller') {
+      return {
+        success: false,
+        error: 'Las cuentas de empleado no tienen permiso para gestionar usuarios.',
+      };
+    }
+    const res = await updateEmployeeInSupabase(employeeId, updates);
+    if (res.success) {
+      await refreshTeamMembers();
+    }
+    return res;
+  };
+
+  const createEmployeeAccount = async (params: {
+    full_name: string;
+    username: string;
+    password: string;
+    email?: string;
+  }) => {
+    if (profile?.role === 'seller') {
+      return {
+        success: false,
+        error: 'Las cuentas de empleado no tienen permiso para crear usuarios.',
+      };
+    }
+    const tId = tenant?.id || profile?.tenant_id || TENANT_STELLA_ID;
+    const currentTier = tenant?.plan_tier || 3;
+    const res = await createEmployeeInSupabase({
+      tenantId: tId,
+      planTier: currentTier,
+      ...params,
     });
+    if (res.success) {
+      await refreshTeamMembers();
+    }
+    return res;
   };
 
-  const activeTenant = tenant || DEFAULT_DEMO_TENANT;
-  const activeProfile = profile || DEFAULT_DEMO_PROFILE;
-  const planTier: PlanTier = simulatedTier || activeTenant.plan_tier || 3;
-  const role: UserRole = simulatedRole || activeProfile.role || 'global_owner';
+  const deleteEmployeeAccount = async (employeeId: string) => {
+    if (profile?.role === 'seller') {
+      return {
+        success: false,
+        error: 'Las cuentas de empleado no tienen permiso para eliminar usuarios.',
+      };
+    }
+    const res = await deleteEmployeeInSupabase(employeeId);
+    if (res.success) {
+      await refreshTeamMembers();
+    }
+    return res;
+  };
+
+  const resetOwnerOnboardingForTest = async () => {
+    if (!user || profile?.role === 'seller') return;
+    const currentMeta = user.user_metadata || {};
+    await supabaseAdmin.auth.admin.updateUserById(user.id, {
+      user_metadata: { ...currentMeta, onboarding_completed: false },
+    });
+    setProfile((prev) => (prev ? { ...prev, onboarding_completed: false } : prev));
+    setIsOnboardingOpen(true);
+  };
+
+  const activeTenant = tenant || DEFAULT_FALLBACK_TENANT;
+  const activeProfile = profile || DEFAULT_FALLBACK_PROFILE;
+  const planTier: PlanTier = activeTenant.plan_tier || 3;
+  const role: UserRole = activeProfile.role || 'global_owner';
+  const needsOnboarding = role === 'global_owner' && !activeProfile.onboarding_completed;
 
   return (
     <AuthContext.Provider
@@ -349,16 +691,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         tenant: { ...activeTenant, plan_tier: planTier },
         planTier,
         role,
+        teamMembers,
         isLoading,
         error,
+        needsOnboarding,
+        isOnboardingOpen,
+        openOnboardingModal: () => {
+          if (role === 'global_owner') setIsOnboardingOpen(true);
+        },
+        closeOnboardingModal: () => setIsOnboardingOpen(false),
         signIn,
         signInWithPreset,
         signOut,
         refreshProfile,
+        refreshTeamMembers,
         updateExchangeRate,
-        setSimulatedRole,
-        setSimulatedTier,
         updateTenantConfig,
+        completeOwnerOnboarding,
+        updateStoreAndOwnerProfile,
+        uploadProfilePhoto,
+        updateEmployeeAccount,
+        createEmployeeAccount,
+        deleteEmployeeAccount,
+        resetOwnerOnboardingForTest,
+        setSimulatedRole: () => {},
+        setSimulatedTier: (newTier: PlanTier) => {
+          if (role === 'global_owner') {
+            const maxSellers = newTier === 1 ? 0 : newTier === 2 ? 1 : 2;
+            updateTenantConfig({
+              plan_tier: newTier,
+              max_owner_profiles: 1,
+              max_seller_profiles: maxSellers,
+            });
+          }
+        },
       }}
     >
       {children}

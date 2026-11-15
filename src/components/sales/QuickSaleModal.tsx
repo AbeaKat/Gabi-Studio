@@ -1,24 +1,20 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   X,
-  ShoppingBag,
   Search,
   Lock,
-  Percent,
   CheckCircle2,
   AlertCircle,
-  Sparkles,
-  Tag,
-  ArrowRight,
-  Coins,
   Banknote,
   Landmark,
   CreditCard,
   Clock,
-  User,
-  Phone,
   Send,
-  Receipt
+  Minus,
+  Plus,
+  Coins,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Product, PlanTier, UserRole, SalesHeader, SalesItem, PaymentMethod } from '../../types';
 import {
@@ -32,6 +28,17 @@ import {
 } from '../../data/realInventoryData';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
+import {
+  PAYMENT_METHOD_OPTIONS,
+  getPaymentMethodLabel,
+  BANK_OPTIONS,
+  money,
+  moneyUsd,
+  localIsoDate,
+} from './salesShared';
+
+// Se re-exportan para no romper otras pantallas que ya los importan desde aquí.
+export { PAYMENT_METHOD_OPTIONS, getPaymentMethodLabel };
 
 interface QuickSaleModalProps {
   isOpen: boolean;
@@ -44,31 +51,20 @@ interface QuickSaleModalProps {
   initialProduct?: Product | null;
 }
 
-export const PAYMENT_METHOD_OPTIONS: Array<{
-  id: PaymentMethod;
-  label: string;
-  shortLabel: string;
-  group: 'cash' | 'bank' | 'pos' | 'credit';
-  requiresTier2?: boolean;
-}> = [
-  { id: 'cash_nio', label: 'Efectivo C$', shortLabel: 'Efectivo (Córdobas)', group: 'cash' },
-  { id: 'cash_usd', label: 'Efectivo $ USD', shortLabel: 'Efectivo (Dólares)', group: 'cash' },
-  { id: 'transfer_bac', label: 'Transf. BAC', shortLabel: 'Transferencia BAC', group: 'bank' },
-  { id: 'transfer_lafise', label: 'Transf. Lafise', shortLabel: 'Transferencia Lafise', group: 'bank' },
-  { id: 'transfer_banpro', label: 'Transf. Banpro', shortLabel: 'Transferencia Banpro', group: 'bank' },
-  { id: 'pos_card', label: 'Tarjeta POS', shortLabel: 'Tarjeta / POS Bancario', group: 'pos' },
-  {
-    id: 'credit_layaway',
-    label: 'Crédito / Apartado',
-    shortLabel: 'Crédito / Apartado',
-    group: 'credit',
-    requiresTier2: true,
-  },
+type PayChoice = 'cash_nio' | 'cash_usd' | 'transfer' | 'pos_card' | 'credit_layaway';
+
+const PAY_TILES: Array<{ id: PayChoice; label: string; hint: string; icon: React.ElementType }> = [
+  { id: 'cash_nio', label: 'Efectivo córdobas', hint: 'Billetes C$', icon: Banknote },
+  { id: 'cash_usd', label: 'Efectivo dólares', hint: 'Billetes $', icon: Coins },
+  { id: 'transfer', label: 'Transferencia', hint: 'BAC, Lafise o Banpro', icon: Landmark },
+  { id: 'pos_card', label: 'Tarjeta', hint: 'Pago con tarjeta', icon: CreditCard },
+  { id: 'credit_layaway', label: 'Me deja un abono / paga después', hint: 'Queda con pago pendiente', icon: Clock },
 ];
 
-export const getPaymentMethodLabel = (method?: PaymentMethod): string => {
-  const found = PAYMENT_METHOD_OPTIONS.find((m) => m.id === method);
-  return found ? found.shortLabel : 'Efectivo (Córdobas)';
+const addDays = (days: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return localIsoDate(d);
 };
 
 export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({
@@ -81,72 +77,86 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({
   onSaleSuccess,
   initialProduct = null,
 }) => {
-  const { tenant } = useAuth();
-  const businessName = tenant?.name || 'Mi Empresa Demo';
-
-  const defaultDueDate = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 15);
-    return d.toISOString().slice(0, 10);
-  }, []);
+  const { tenant, setSimulatedTier } = useAuth();
+  const businessName = tenant?.name || 'Mi Negocio';
+  const isOwnerView = role !== 'seller';
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(initialProduct);
-  const [quantity, setQuantity] = useState<number>(1);
-  const [discountNio, setDiscountNio] = useState<string>('0');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash_nio');
-  const [initialPaymentNio, setInitialPaymentNio] = useState<string>('0');
-  const [dueDate, setDueDate] = useState<string>(defaultDueDate);
+  const [quantity, setQuantity] = useState<string>('1');
+  const [discountNio, setDiscountNio] = useState<string>('');
+  const [showDiscount, setShowDiscount] = useState(false);
+  const [payChoice, setPayChoice] = useState<PayChoice>('cash_nio');
+  const [bank, setBank] = useState<PaymentMethod>('transfer_bac');
+  const [initialPaymentNio, setInitialPaymentNio] = useState<string>('');
+  const [abonoMethod, setAbonoMethod] = useState<PaymentMethod>('cash_nio');
+  const [dueDate, setDueDate] = useState<string>(addDays(15));
   const [customerName, setCustomerName] = useState<string>('');
   const [customerPhone, setCustomerPhone] = useState<string>('');
-  const [promoTag, setPromoTag] = useState<string>('');
-  const [notes, setNotes] = useState<string>('');
+  const [showCustomer, setShowCustomer] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [saleCompleted, setSaleCompleted] = useState(false);
-  const [lastReceiptId, setLastReceiptId] = useState<string>('');
+  const [saved, setSaved] = useState<null | {
+    product: Product;
+    qty: number;
+    total: number;
+    totalUsd: number;
+    discountTotal: number;
+    method: PaymentMethod;
+    paidNow: number;
+    due: number;
+    dueDate: string | null;
+    profitUsd: number;
+    customer: string;
+    receiptId: string;
+  }>(null);
 
   const products = useMemo(() => {
     if (!isOpen) return [];
     return getStoredProducts();
-  }, [isOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, saved]);
 
   const matchingProducts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return products.filter((p) => p.stock_current > 0).slice(0, 8);
-    return products
-      .filter(
-        (p) =>
-          p.sku.toLowerCase().includes(q) ||
-          (p.name && p.name.toLowerCase().includes(q))
-      )
-      .slice(0, 10);
+    const list = q
+      ? products.filter(
+          (p) => p.sku.toLowerCase().includes(q) || (p.name && p.name.toLowerCase().includes(q))
+        )
+      : products.filter((p) => p.stock_current > 0);
+    return list.slice(0, 8);
   }, [products, searchQuery]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedProduct(initialProduct);
+      if (!initialProduct) setTimeout(() => searchRef.current?.focus(), 50);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
+  const hasCrece = planTier >= 2;
   const activeProd = selectedProduct;
+  const qtyNum = Math.max(0, parseInt(quantity, 10) || 0);
   const listPriceNio = activeProd ? Number(activeProd.price_nio || 0) : 0;
   const listPriceUsd = activeProd ? Number(activeProd.price_usd || 0) : 0;
-  const unitCostUsd = activeProd
-    ? Number(activeProd.landed_cost_usd || activeProd.base_cost_usd || 0)
-    : 0;
+  const unitCostUsd = activeProd ? Number(activeProd.landed_cost_usd || activeProd.base_cost_usd || 0) : 0;
 
-  // Discount only allowed in Tier 2+
-  const parsedDiscountNio = planTier >= 2 ? Math.max(0, parseFloat(discountNio) || 0) : 0;
+  const parsedDiscountNio = hasCrece ? Math.max(0, parseFloat(discountNio) || 0) : 0;
   const finalUnitPriceNio = Math.max(0, listPriceNio - parsedDiscountNio);
   const finalUnitPriceUsd =
-    parsedDiscountNio > 0
-      ? Math.round((finalUnitPriceNio / exchangeRate) * 100) / 100
-      : listPriceUsd;
+    parsedDiscountNio > 0 ? Math.round((finalUnitPriceNio / exchangeRate) * 100) / 100 : listPriceUsd;
+  const totalChargeNio = finalUnitPriceNio * qtyNum;
+  const totalChargeUsd = finalUnitPriceUsd * qtyNum;
+  const totalDiscountNio = parsedDiscountNio * qtyNum;
+  const netProfitUsd = Math.round((finalUnitPriceUsd - unitCostUsd) * qtyNum * 100) / 100;
 
-  const totalChargeNio = finalUnitPriceNio * quantity;
-  const totalChargeUsd = finalUnitPriceUsd * quantity;
-  const totalDiscountNio = parsedDiscountNio * quantity;
-  const netProfitUsd = Math.round((finalUnitPriceUsd - unitCostUsd) * quantity * 100) / 100;
-
-  // Credit / Layaway calculations (Tier 2+)
-  const isCreditMode = planTier >= 2 && paymentMethod === 'credit_layaway';
+  const isCreditMode = hasCrece && payChoice === 'credit_layaway';
+  const paymentMethod: PaymentMethod =
+    payChoice === 'transfer' ? bank : (payChoice as PaymentMethod);
   const parsedAbonoNio = isCreditMode
     ? Math.min(totalChargeNio, Math.max(0, parseFloat(initialPaymentNio) || 0))
     : totalChargeNio;
@@ -154,34 +164,64 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({
   const paymentStatus: 'paid' | 'partial' | 'pending' = !isCreditMode
     ? 'paid'
     : balanceDueNio > 0
-    ? 'partial'
+    ? parsedAbonoNio > 0
+      ? 'partial'
+      : 'pending'
     : 'paid';
+
+  const pickProduct = (p: Product) => {
+    if (p.stock_current <= 0) return;
+    setSelectedProduct(p);
+    setQuantity('1');
+    setDiscountNio('');
+    setErrorMessage(null);
+    setSearchQuery('');
+  };
+
+  const changeQty = (delta: number) => {
+    const max = activeProd?.stock_current ?? 999;
+    setQuantity(String(Math.min(max, Math.max(1, qtyNum + delta))));
+  };
 
   const handleConfirmSale = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
     if (!activeProd) {
-      setErrorMessage('Selecciona un producto del catálogo para registrar la venta.');
+      setErrorMessage('Primero busca y elige qué producto vendiste.');
       return;
     }
-
-    if (quantity <= 0 || quantity > activeProd.stock_current) {
+    if (qtyNum <= 0) {
+      setErrorMessage('Escribe cuántas unidades vendiste (mínimo 1).');
+      return;
+    }
+    if (qtyNum > activeProd.stock_current) {
       setErrorMessage(
-        `Stock insuficiente. El SKU ${activeProd.sku} tiene ${activeProd.stock_current} unidad(es) disponible(s).`
+        `Solo te quedan ${activeProd.stock_current} unidad(es) de "${activeProd.name || activeProd.sku}". Baja la cantidad o actualiza tus productos.`
       );
       return;
     }
-
-    if (isCreditMode) {
-      if (!customerName.trim() || !customerPhone.trim()) {
-        setErrorMessage(
-          'Para ventas al Crédito / Apartado es obligatorio ingresar el Nombre del Cliente y su WhatsApp.'
-        );
+    if (parsedDiscountNio > listPriceNio) {
+      setErrorMessage(`El descuento no puede ser mayor que el precio (${money(listPriceNio)}).`);
+      return;
+    }
+    if (hasCrece && payChoice === 'credit_layaway') {
+      if (!customerName.trim()) {
+        setShowCustomer(true);
+        setErrorMessage('Si el cliente paga después, anota su nombre para saber quién te debe.');
+        return;
+      }
+      if (!customerPhone.trim()) {
+        setShowCustomer(true);
+        setErrorMessage('Anota el WhatsApp del cliente para poder recordarle su pago.');
+        return;
+      }
+      if ((parseFloat(initialPaymentNio) || 0) > totalChargeNio) {
+        setErrorMessage(`El abono no puede ser mayor que el total (${money(totalChargeNio)}).`);
         return;
       }
       if (!dueDate) {
-        setErrorMessage('Selecciona una Fecha Límite de Pago para el Crédito / Apartado.');
+        setErrorMessage('Elige hasta qué fecha el cliente se compromete a pagar.');
         return;
       }
     }
@@ -200,7 +240,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({
         id: headerId,
         tenant_id: tenantId,
         entry_mode: 'single_sale',
-        sale_date: nowIso.slice(0, 10),
+        sale_date: localIsoDate(),
         payment_method: paymentMethod,
         customer_name: cleanCustomerName,
         customer_phone: cleanCustomerPhone,
@@ -208,8 +248,8 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({
         balance_due_nio: balanceDueNio,
         payment_status: paymentStatus,
         due_date: effectiveDueDate,
-        promo_tag: planTier >= 2 && promoTag.trim() ? promoTag.trim() : null,
-        notes: notes.trim() || `Venta en vivo 1 a 1 (${activeProd.sku})`,
+        promo_tag: null,
+        notes: `Venta anotada (${activeProd.sku})`,
         created_at: nowIso,
       };
 
@@ -221,7 +261,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({
         sku_snapshot: activeProd.sku,
         product_name_snapshot: activeProd.name || activeProd.sku,
         batch_id_snapshot: activeProd.batch_id || null,
-        quantity,
+        quantity: qtyNum,
         unit_cost_usd_snapshot: unitCostUsd,
         list_price_usd_snapshot: listPriceUsd,
         list_price_nio_snapshot: listPriceNio,
@@ -231,6 +271,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({
         exchange_rate_snapshot: exchangeRate,
         net_profit_usd: netProfitUsd,
         payment_method: paymentMethod,
+        ...(isCreditMode && parsedAbonoNio > 0 ? { abono_payment_method: abonoMethod } : {}),
         customer_name: cleanCustomerName,
         customer_phone: cleanCustomerPhone,
         amount_paid_nio: parsedAbonoNio,
@@ -240,72 +281,71 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({
         created_at: nowIso,
       };
 
-      // 1. Update local storage snapshots & deduct stock_current
       const updatedProducts = getStoredProducts().map((p) =>
         p.id === activeProd.id
-          ? { ...p, stock_current: Math.max(0, p.stock_current - quantity), updated_at: nowIso }
+          ? { ...p, stock_current: Math.max(0, p.stock_current - qtyNum), updated_at: nowIso }
           : p
       );
       saveStoredProducts(updatedProducts);
+      saveStoredSalesHeaders([newHeader, ...getStoredSalesHeaders()]);
+      saveStoredSalesItems([newItem, ...getStoredSalesItems()]);
 
-      const headers = [newHeader, ...getStoredSalesHeaders()];
-      saveStoredSalesHeaders(headers);
-
-      const items = [newItem, ...getStoredSalesItems()];
-      saveStoredSalesItems(items);
-
-      // 2. Sync to Supabase if connected
       try {
         await supabase.from('sales_headers').insert(newHeader);
         await supabase.from('sales_items').insert(newItem);
         await supabase
           .from('products')
-          .update({ stock_current: Math.max(0, activeProd.stock_current - quantity) })
+          .update({ stock_current: Math.max(0, activeProd.stock_current - qtyNum) })
           .eq('id', activeProd.id);
       } catch (dbErr) {
-        console.warn('Guardado en almacenamiento local (modo demo):', dbErr);
+        console.warn('Guardado en este dispositivo (modo demo):', dbErr);
       }
 
-      setLastReceiptId(`REC-${shortCode}`);
-      setSaleCompleted(true);
+      setSaved({
+        product: activeProd,
+        qty: qtyNum,
+        total: totalChargeNio,
+        totalUsd: totalChargeUsd,
+        discountTotal: totalDiscountNio,
+        method: paymentMethod,
+        paidNow: parsedAbonoNio,
+        due: balanceDueNio,
+        dueDate: effectiveDueDate,
+        profitUsd: netProfitUsd,
+        customer: cleanCustomerName || '',
+        receiptId: `REC-${shortCode}`,
+      });
       if (onSaleSuccess) onSaleSuccess();
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Error al registrar la venta.');
+      setErrorMessage(err?.message || 'No se pudo guardar la venta. Intenta de nuevo.');
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleSendWhatsAppReceipt = () => {
-    if (!activeProd) return;
+    if (!saved) return;
     const rawDigits = customerPhone.replace(/[^0-9]/g, '');
-    const formattedPhone =
-      rawDigits.length === 8 ? `505${rawDigits}` : rawDigits;
-
-    const dateStr = new Date().toLocaleDateString('es-NI', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
+    const formattedPhone = rawDigits.length === 8 ? `505${rawDigits}` : rawDigits;
+    const dateStr = new Date().toLocaleDateString('es-NI', { day: '2-digit', month: 'short', year: 'numeric' });
 
     const lines = [
-      `*COMPROBANTE DIGITAL DE COMPRA*`,
+      `*COMPROBANTE DE COMPRA*`,
       `*${businessName}*`,
-      `Recibo: ${lastReceiptId || 'REC-001'} • Fecha: ${dateStr}`,
-      customerName.trim() ? `Cliente: ${customerName.trim()}` : null,
+      `Recibo: ${saved.receiptId} • Fecha: ${dateStr}`,
+      saved.customer ? `Cliente: ${saved.customer}` : null,
       `--------------------------------`,
-      `• *SKU:* ${activeProd.sku}`,
-      `• *Producto:* ${activeProd.name || activeProd.sku}`,
-      `• *Cantidad:* ${quantity} ud(s) x C$ ${listPriceNio.toFixed(2)}`,
-      totalDiscountNio > 0 ? `• *Descuento Aplicado:* -C$ ${totalDiscountNio.toFixed(2)}` : null,
+      `• *Producto:* ${saved.product.name || saved.product.sku}`,
+      `• *Cantidad:* ${saved.qty} x ${money(Number(saved.product.price_nio || 0))}`,
+      saved.discountTotal > 0 ? `• *Descuento:* -${money(saved.discountTotal)}` : null,
       `--------------------------------`,
-      `*TOTAL:* C$ ${totalChargeNio.toFixed(2)} (≈ $${totalChargeUsd.toFixed(2)} USD)`,
-      `*Método de Pago:* ${getPaymentMethodLabel(paymentMethod)}`,
-      isCreditMode
-        ? `*Abono Inicial:* C$ ${parsedAbonoNio.toFixed(2)}\n*Saldo Pendiente:* C$ ${balanceDueNio.toFixed(2)} (≈ $${(balanceDueNio / exchangeRate).toFixed(2)} USD)\n*Fecha Límite:* ${dueDate}`
+      `*TOTAL:* ${money(saved.total)}`,
+      `*Pagó con:* ${getPaymentMethodLabel(saved.method)}`,
+      saved.due > 0
+        ? `*Abonó:* ${money(saved.paidNow)}\n*Le queda por pagar:* ${money(saved.due)}${saved.dueDate ? `\n*Fecha de pago:* ${saved.dueDate}` : ''}`
         : `*Estado:* PAGADO`,
       `--------------------------------`,
-      `¡Gracias por su preferencia!`,
+      `¡Gracias por tu compra!`,
     ]
       .filter(Boolean)
       .join('\n');
@@ -314,589 +354,486 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({
     const waUrl = formattedPhone
       ? `https://wa.me/${formattedPhone}?text=${encodedText}`
       : `https://wa.me/?text=${encodedText}`;
-
     window.open(waUrl, '_blank', 'noopener,noreferrer');
   };
 
   const resetForNextSale = () => {
-    setSaleCompleted(false);
+    setSaved(null);
     setSelectedProduct(null);
-    setQuantity(1);
-    setDiscountNio('0');
-    setPaymentMethod('cash_nio');
-    setInitialPaymentNio('0');
-    setDueDate(defaultDueDate);
+    setQuantity('1');
+    setDiscountNio('');
+    setShowDiscount(false);
+    setPayChoice('cash_nio');
+    setBank('transfer_bac');
+    setInitialPaymentNio('');
+    setAbonoMethod('cash_nio');
+    setDueDate(addDays(15));
     setCustomerName('');
     setCustomerPhone('');
-    setPromoTag('');
-    setNotes('');
+    setShowCustomer(false);
     setErrorMessage(null);
+    setSearchQuery('');
+    setTimeout(() => searchRef.current?.focus(), 50);
   };
 
   const resetAndClose = () => {
     resetForNextSale();
-    setSearchQuery('');
     onClose();
   };
 
+  const inputCls =
+    'w-full px-4 py-3 text-base rounded-xl bg-white border border-nacre-300 text-deepSlate-900 placeholder:text-deepSlate-400 focus:outline-none focus:border-coral-500 focus:ring-2 focus:ring-coral-500/20';
+  const labelCls = 'block text-sm font-bold text-deepSlate-700 mb-1.5';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-deepSlate-900/40 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-3xl max-w-2xl w-full border border-nacre-200 shadow-modal-depth overflow-hidden flex flex-col max-h-[92vh] animate-modal-enter">
-        
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-nacre-200 flex items-center justify-between bg-nacre-50/70">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-coral-500 text-white flex items-center justify-center shadow-sm shadow-coral-500/25">
-              <ShoppingBag className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-extrabold text-base sm:text-lg text-deepSlate-900">
-                {saleCompleted ? 'Recibo Digital de Venta' : 'Venta Rápida en Vivo (1 a 1)'}
-              </h3>
-              <p className="text-xs text-deepSlate-500">
-                {saleCompleted
-                  ? `${businessName} • Comprobante listo para enviar por WhatsApp`
-                  : 'Descuenta stock al instante y congela el snapshot financiero inmutable'}
-              </p>
-            </div>
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-deepSlate-900/40 backdrop-blur-sm animate-fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Anotar una venta"
+    >
+      <div className="bg-white sm:rounded-3xl rounded-t-3xl max-w-2xl w-full border border-nacre-200 shadow-modal-depth overflow-hidden flex flex-col max-h-[96vh] sm:max-h-[92vh] animate-modal-enter">
+        {/* Encabezado */}
+        <div className="px-5 sm:px-6 py-4 border-b border-nacre-200 flex items-center justify-between bg-nacre-50/70">
+          <div>
+            <h3 className="font-extrabold text-lg sm:text-xl text-deepSlate-900">
+              {saved ? '¡Venta guardada!' : 'Anotar una venta'}
+            </h3>
+            <p className="text-sm text-deepSlate-500">
+              {saved ? 'Ya se descontó de tus productos.' : 'Elige el producto, cuánto pagó y listo.'}
+            </p>
           </div>
           <button
             onClick={resetAndClose}
-            className="p-1.5 rounded-xl text-deepSlate-400 hover:text-deepSlate-700 hover:bg-nacre-100"
+            aria-label="Cerrar"
+            className="w-11 h-11 flex items-center justify-center rounded-xl text-deepSlate-500 hover:text-deepSlate-800 hover:bg-nacre-100"
           >
-            <X className="w-5 h-5" />
+            <X className="w-6 h-6" />
           </button>
         </div>
 
-        {saleCompleted && activeProd ? (
-          <div className="p-6 overflow-y-auto space-y-5">
-            {/* Digital Receipt Card */}
-            <div className="bg-nacre-50 rounded-2xl border border-nacre-200 p-5 max-w-md mx-auto space-y-4">
-              <div className="flex items-center justify-between border-b border-nacre-200 pb-3">
-                <div className="flex items-center space-x-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center">
-                    <Receipt className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-extrabold text-deepSlate-900 block">
-                      {businessName}
-                    </span>
-                    <span className="text-[11px] font-mono text-deepSlate-500">
-                      {lastReceiptId} • {new Date().toLocaleDateString('es-NI')}
-                    </span>
-                  </div>
-                </div>
-                <span className="inline-flex items-center space-x-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>{isCreditMode && balanceDueNio > 0 ? 'Apartado' : 'Pagado'}</span>
-                </span>
+        {saved ? (
+          <div className="p-5 sm:p-6 overflow-y-auto space-y-5">
+            <div className="flex flex-col items-center text-center space-y-2">
+              <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center">
+                <CheckCircle2 className="w-9 h-9 text-emerald-600" />
               </div>
-
-              {/* Customer Info if provided */}
-              {(customerName.trim() || customerPhone.trim()) && (
-                <div className="text-xs bg-white rounded-xl p-3 border border-nacre-200 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-deepSlate-400 block">
-                      Cliente
-                    </span>
-                    <span className="font-bold text-deepSlate-800">
-                      {customerName.trim() || 'Cliente de Contado'}
-                    </span>
-                  </div>
-                  {customerPhone.trim() && (
-                    <span className="font-mono text-xs text-deepSlate-600">
-                      +{customerPhone.replace(/[^0-9]/g, '')}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Itemized Breakdown */}
-              <div className="space-y-2 text-xs font-mono">
-                <div className="flex justify-between items-start">
-                  <span className="font-sans text-deepSlate-500">SKU / Producto:</span>
-                  <div className="text-right">
-                    <span className="font-bold text-deepSlate-900 block">{activeProd.sku}</span>
-                    <span className="font-sans text-[11px] text-deepSlate-600 block max-w-[220px] truncate">
-                      {activeProd.name || activeProd.sku}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="font-sans text-deepSlate-500">Cantidad x Precio Lista:</span>
-                  <span className="text-deepSlate-800">
-                    {quantity} ud(s) x C$ {listPriceNio.toFixed(2)}
-                  </span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="font-sans text-deepSlate-500">Descuento Aplicado:</span>
-                  <span className={totalDiscountNio > 0 ? 'text-rose-600 font-bold' : 'text-deepSlate-400'}>
-                    {totalDiscountNio > 0 ? `-C$ ${totalDiscountNio.toFixed(2)}` : 'C$ 0.00'}
-                  </span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="font-sans text-deepSlate-500">Método de Pago:</span>
-                  <span className="font-sans font-bold text-deepSlate-900">
-                    {getPaymentMethodLabel(paymentMethod)}
-                  </span>
-                </div>
-
-                <div className="pt-2.5 border-t border-nacre-200 flex justify-between items-baseline">
-                  <span className="font-sans font-bold text-deepSlate-800">Total Venta (C$):</span>
-                  <span className="text-base font-extrabold text-coral-600">
-                    C$ {totalChargeNio.toFixed(2)}
-                  </span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="font-sans text-deepSlate-500">Equivalente ($ USD):</span>
-                  <span className="font-bold text-deepSlate-900">
-                    ${totalChargeUsd.toFixed(2)} USD (Tasa {exchangeRate.toFixed(2)})
-                  </span>
-                </div>
-
-                {isCreditMode && (
-                  <div className="pt-2 border-t border-nacre-200 space-y-1">
-                    <div className="flex justify-between text-emerald-700">
-                      <span className="font-sans font-semibold">Abono Inicial Recibido:</span>
-                      <span className="font-bold">C$ {parsedAbonoNio.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-amber-700">
-                      <span className="font-sans font-bold">Saldo Pendiente por Cobrar:</span>
-                      <span className="font-extrabold">
-                        C$ {balanceDueNio.toFixed(2)} (≈ ${(balanceDueNio / exchangeRate).toFixed(2)})
-                      </span>
-                    </div>
-                    {dueDate && (
-                      <div className="flex justify-between text-deepSlate-600">
-                        <span className="font-sans">Fecha Límite de Pago:</span>
-                        <span className="font-bold">{dueDate}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {role !== 'seller' && (
-                  <div className="flex justify-between pt-2 border-t border-nacre-200">
-                    <span className="text-emerald-700 font-sans font-bold">
-                      Ganancia Neta Congelada:
-                    </span>
-                    <span className="font-extrabold text-emerald-600">
-                      +${netProfitUsd.toFixed(2)} USD
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Quick WhatsApp Phone Input & CTA */}
-              <div className="pt-3 border-t border-nacre-200 space-y-2.5">
-                <div className="relative">
-                  <Phone className="w-3.5 h-3.5 text-deepSlate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="tel"
-                    placeholder="WhatsApp del cliente (ej. 50588888888)"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-xs font-mono rounded-xl bg-white border border-nacre-200 focus:outline-none focus:border-emerald-600"
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleSendWhatsAppReceipt}
-                  className="w-full py-3 px-4 rounded-xl text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm active:scale-98 transition-all flex items-center justify-center space-x-2"
-                >
-                  <Send className="w-4 h-4" />
-                  <span>Enviar Recibo por WhatsApp</span>
-                </button>
-              </div>
+              <p className="text-3xl font-extrabold text-deepSlate-900">{money(saved.total)}</p>
+              <p className="text-base text-deepSlate-600">
+                {saved.qty} × {saved.product.name || saved.product.sku}
+                {saved.customer ? ` · ${saved.customer}` : ''}
+              </p>
             </div>
 
-            <div className="flex items-center justify-center space-x-3 pt-1">
+            <div className="bg-nacre-50 rounded-2xl border border-nacre-200 p-4 space-y-2 text-base">
+              <div className="flex justify-between">
+                <span className="text-deepSlate-500">Cómo pagó</span>
+                <span className="font-bold text-deepSlate-900">{getPaymentMethodLabel(saved.method)}</span>
+              </div>
+              {saved.discountTotal > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-deepSlate-500">Descuento</span>
+                  <span className="font-bold text-rose-600">-{money(saved.discountTotal)}</span>
+                </div>
+              )}
+              {saved.due > 0 ? (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-deepSlate-500">Ya pagó</span>
+                    <span className="font-bold text-emerald-700">{money(saved.paidNow)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-deepSlate-500">Todavía te debe</span>
+                    <span className="font-extrabold text-amber-700">{money(saved.due)}</span>
+                  </div>
+                  {saved.dueDate && (
+                    <div className="flex justify-between">
+                      <span className="text-deepSlate-500">Se comprometió a pagar antes del</span>
+                      <span className="font-bold text-deepSlate-900">{saved.dueDate}</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex justify-between">
+                  <span className="text-deepSlate-500">Estado</span>
+                  <span className="font-bold text-emerald-700">Pagado completo</span>
+                </div>
+              )}
+              {isOwnerView && (
+                <div className="flex justify-between pt-2 border-t border-nacre-200">
+                  <span className="text-deepSlate-500">Ganancia de esta venta</span>
+                  <span className="font-extrabold text-emerald-700">
+                    {moneyUsd(saved.profitUsd)} ≈ {money(saved.profitUsd * exchangeRate)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <input
+                type="tel"
+                inputMode="tel"
+                placeholder="WhatsApp del cliente para enviarle el recibo (opcional)"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                className={inputCls}
+              />
+              <button
+                type="button"
+                onClick={handleSendWhatsAppReceipt}
+                className="w-full min-h-[52px] px-4 rounded-xl text-base font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 flex items-center justify-center gap-2"
+              >
+                <Send className="w-5 h-5" />
+                Enviar recibo por WhatsApp
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={resetForNextSale}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-nacre-100 hover:bg-nacre-200 text-deepSlate-800"
+                className="min-h-[52px] px-4 rounded-xl text-base font-extrabold text-white bg-coral-500 hover:bg-coral-600"
               >
-                Registrar Otra Venta
+                Anotar otra venta
               </button>
               <button
                 type="button"
                 onClick={resetAndClose}
-                className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-coral-500 hover:bg-coral-600 shadow-md shadow-coral-500/25"
+                className="min-h-[52px] px-4 rounded-xl text-base font-bold text-deepSlate-700 bg-nacre-100 hover:bg-nacre-200"
               >
-                Listo, Cerrar
+                Listo, cerrar
               </button>
             </div>
           </div>
         ) : (
-          <form onSubmit={handleConfirmSale} className="p-6 overflow-y-auto space-y-5">
-            {errorMessage && (
-              <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start space-x-2">
-                <AlertCircle className="w-4 h-4 text-rose-600 mt-0.5 shrink-0" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
-
-            {/* Step 1: Instant Search by SKU */}
-            <div>
-              <label className="block text-xs font-bold text-deepSlate-700 uppercase tracking-wider mb-1.5">
-                1. Buscar Pieza por Código SKU o Nombre
-              </label>
-              <div className="relative">
-                <Search className="w-4 h-4 text-deepSlate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Escribe ej. REP-402, TEC-109, FER-033 o código del catálogo..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white text-deepSlate-900 font-medium"
-                  autoFocus
-                />
-              </div>
-
-              {/* Search Results */}
-              <div className="mt-2 max-h-36 overflow-y-auto rounded-2xl border border-nacre-200 divide-y divide-nacre-100 bg-white">
-                {matchingProducts.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-deepSlate-400">
-                    No se encontraron productos con ese código SKU.
+          <form onSubmit={handleConfirmSale} className="flex flex-col min-h-0 flex-1">
+            <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1">
+              {/* 1. Producto */}
+              <section>
+                <label className={labelCls}>1. ¿Qué vendiste?</label>
+                {activeProd ? (
+                  <div className="flex items-center justify-between gap-3 p-4 rounded-2xl border-2 border-coral-500 bg-coral-50/50">
+                    <div className="min-w-0">
+                      <p className="text-base font-extrabold text-deepSlate-900 truncate">
+                        {activeProd.name || activeProd.sku}
+                      </p>
+                      <p className="text-sm text-deepSlate-600">
+                        Código {activeProd.sku} · {money(listPriceNio)} · quedan {activeProd.stock_current}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedProduct(null)}
+                      className="shrink-0 min-h-[44px] px-4 rounded-xl text-sm font-bold text-coral-600 bg-white border border-coral-200 hover:bg-coral-50"
+                    >
+                      Cambiar
+                    </button>
                   </div>
                 ) : (
-                  matchingProducts.map((p) => {
-                    const isSelected = activeProd?.id === p.id;
-                    return (
-                      <button
-                        type="button"
-                        key={p.id}
-                        onClick={() => {
-                          setSelectedProduct(p);
-                          setQuantity(1);
-                        }}
-                        className={`w-full px-3.5 py-2 text-left flex items-center justify-between text-xs transition-colors ${
-                          isSelected
-                            ? 'bg-coral-50/80 text-coral-900 font-bold'
-                            : 'hover:bg-nacre-50 text-deepSlate-800'
-                        }`}
-                      >
-                        <div className="flex items-center space-x-2.5 overflow-hidden">
-                          <span className="font-mono font-extrabold text-deepSlate-900 bg-nacre-100 px-2 py-0.5 rounded border border-nacre-200">
-                            {p.sku}
-                          </span>
-                          <span className="truncate text-deepSlate-600">{p.name}</span>
-                        </div>
-                        <div className="flex items-center space-x-3 shrink-0 font-mono">
-                          <span
-                            className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                              p.stock_current > 0
-                                ? 'bg-emerald-50 text-emerald-700'
-                                : 'bg-rose-100 text-rose-700'
-                            }`}
-                          >
-                            {p.stock_current} uds
-                          </span>
-                          <span className="font-extrabold text-coral-600">C$ {p.price_nio}</span>
-                        </div>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            {/* Selected Product & Details */}
-            {activeProd && (
-              <div className="space-y-4 pt-1">
-                <div className="p-3.5 rounded-2xl bg-coral-50/50 border border-coral-200 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-coral-600 block">
-                      Pieza Seleccionada
-                    </span>
-                    <span className="text-sm font-extrabold font-mono text-deepSlate-900">
-                      {activeProd.sku}
-                    </span>
-                    <span className="text-xs text-deepSlate-600 block">{activeProd.name}</span>
-                  </div>
-                  <div className="text-right font-mono">
-                    <span className="text-sm font-extrabold text-coral-600 block">
-                      C$ {activeProd.price_nio.toFixed(2)}
-                    </span>
-                    <span className="text-xs text-deepSlate-500">
-                      ${activeProd.price_usd.toFixed(2)} USD
-                    </span>
-                  </div>
-                </div>
-
-                {/* Quantity & Discount */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-deepSlate-700 uppercase tracking-wider mb-1.5">
-                      Cantidad a Vender (Stock: {activeProd.stock_current})
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max={Math.max(1, activeProd.stock_current)}
-                      value={quantity}
-                      onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                      className="w-full px-3.5 py-2 text-xs font-mono font-bold rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500"
-                    />
-                  </div>
-
-                  {/* Discount / Promotion (Tier 2+ unlocked, Tier 1 locked) */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-xs font-bold text-deepSlate-700 uppercase tracking-wider flex items-center space-x-1">
-                        <Percent className="w-3.5 h-3.5 text-coral-500" />
-                        <span>Descuento por Ud (C$)</span>
-                      </label>
-                      {planTier === 1 && (
-                        <span className="inline-flex items-center space-x-1 text-[10px] font-bold px-2 py-0.5 rounded bg-nacre-200 text-deepSlate-700">
-                          <Lock className="w-2.5 h-2.5 text-coral-500" />
-                          <span>Nivel 2</span>
-                        </span>
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Search className="w-5 h-5 text-deepSlate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                      <input
+                        ref={searchRef}
+                        type="text"
+                        placeholder="Escribe el nombre o el código del producto"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className={`${inputCls} pl-12`}
+                      />
+                    </div>
+                    <div className="rounded-2xl border border-nacre-200 divide-y divide-nacre-100 overflow-hidden max-h-64 overflow-y-auto">
+                      {matchingProducts.length === 0 ? (
+                        <p className="p-4 text-base text-deepSlate-500">
+                          No encontramos “{searchQuery}”. Revisa el nombre o prueba con el código.
+                        </p>
+                      ) : (
+                        matchingProducts.map((p) => {
+                          const out = p.stock_current <= 0;
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              disabled={out}
+                              onClick={() => pickProduct(p)}
+                              className={`w-full text-left px-4 py-3 min-h-[56px] flex items-center justify-between gap-3 ${
+                                out ? 'opacity-50 cursor-not-allowed bg-nacre-50' : 'hover:bg-coral-50/60 active:bg-coral-50'
+                              }`}
+                            >
+                              <span className="min-w-0">
+                                <span className="block text-base font-bold text-deepSlate-900 truncate">
+                                  {p.name || p.sku}
+                                </span>
+                                <span className="block text-sm text-deepSlate-500">
+                                  Código {p.sku} · {out ? 'Agotado' : `quedan ${p.stock_current}`}
+                                </span>
+                              </span>
+                              <span className="shrink-0 text-base font-extrabold text-coral-600">
+                                {money(Number(p.price_nio || 0))}
+                              </span>
+                            </button>
+                          );
+                        })
                       )}
                     </div>
-                    {planTier >= 2 ? (
+                  </div>
+                )}
+              </section>
+
+              {/* 2. Cantidad y descuento */}
+              <section className="space-y-3">
+                <label className={labelCls}>2. ¿Cuántos vendiste?</label>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => changeQty(-1)}
+                    aria-label="Quitar uno"
+                    className="w-14 h-14 rounded-xl bg-nacre-100 hover:bg-nacre-200 flex items-center justify-center text-deepSlate-700"
+                  >
+                    <Minus className="w-6 h-6" />
+                  </button>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    className="w-24 h-14 text-center text-2xl font-extrabold rounded-xl border border-nacre-300 focus:outline-none focus:border-coral-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => changeQty(1)}
+                    aria-label="Agregar uno"
+                    className="w-14 h-14 rounded-xl bg-nacre-100 hover:bg-nacre-200 flex items-center justify-center text-deepSlate-700"
+                  >
+                    <Plus className="w-6 h-6" />
+                  </button>
+                </div>
+
+                {hasCrece ? (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setShowDiscount((v) => !v)}
+                      className="inline-flex items-center gap-1.5 min-h-[44px] text-sm font-bold text-coral-600"
+                    >
+                      {showDiscount ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      {showDiscount || parsedDiscountNio > 0 ? 'Descuento por unidad' : '¿Le hiciste descuento?'}
+                    </button>
+                    {(showDiscount || parsedDiscountNio > 0) && (
                       <input
                         type="number"
-                        min="0"
-                        step="5"
+                        inputMode="decimal"
+                        min={0}
+                        placeholder="Cuántos córdobas le rebajaste a cada unidad (ej. 20)"
                         value={discountNio}
                         onChange={(e) => setDiscountNio(e.target.value)}
-                        placeholder="0.00"
-                        className="w-full px-3.5 py-2 text-xs font-mono font-bold rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500"
+                        className={inputCls}
                       />
-                    ) : (
-                      <div
-                        title="El motor de promociones y descuentos está disponible a partir del Nivel 2 (Crecimiento)"
-                        className="w-full px-3.5 py-2 text-xs rounded-xl bg-nacre-100 border border-nacre-200 text-deepSlate-400 flex items-center justify-between cursor-not-allowed select-none"
-                      >
-                        <span>Bloqueado en Nivel 1</span>
-                        <Lock className="w-3.5 h-3.5 text-deepSlate-400" />
-                      </div>
                     )}
                   </div>
+                ) : (
+                  <p className="flex items-center gap-2 text-sm text-deepSlate-500">
+                    <Lock className="w-4 h-4 text-coral-500" />
+                    Los descuentos se activan con el plan Crece.
+                  </p>
+                )}
+              </section>
+
+              {/* 3. Cliente */}
+              <section>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomer((v) => !v)}
+                  className="w-full flex items-center justify-between min-h-[48px] text-left"
+                >
+                  <span className={`${labelCls} mb-0`}>
+                    3. ¿Quién compró?{' '}
+                    <span className="font-normal text-deepSlate-500">
+                      {isCreditMode ? '(necesario si paga después)' : '(opcional)'}
+                    </span>
+                  </span>
+                  {showCustomer || isCreditMode ? (
+                    <ChevronUp className="w-5 h-5 text-deepSlate-400" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-deepSlate-400" />
+                  )}
+                </button>
+                {(showCustomer || isCreditMode) && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                    <input
+                      type="text"
+                      placeholder="Nombre del cliente"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      className={inputCls}
+                    />
+                    <input
+                      type="tel"
+                      inputMode="tel"
+                      placeholder="WhatsApp (ej. 88888888)"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      className={inputCls}
+                    />
+                  </div>
+                )}
+              </section>
+
+              {/* 4. Cómo pagó */}
+              <section className="space-y-3">
+                <label className={labelCls}>4. ¿Cómo pagó?</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {PAY_TILES.map((t) => {
+                    const Icon = t.icon;
+                    const locked = t.id === 'credit_layaway' && !hasCrece;
+                    const active = payChoice === t.id && !locked;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => {
+                          if (locked) {
+                            setErrorMessage('Anotar ventas con abono o pago pendiente es parte del plan Crece.');
+                            return;
+                          }
+                          setErrorMessage(null);
+                          setPayChoice(t.id);
+                        }}
+                        className={`text-left p-3.5 min-h-[76px] rounded-2xl border-2 transition-all ${
+                          t.id === 'credit_layaway' ? 'col-span-2' : ''
+                        } ${
+                          active
+                            ? 'border-coral-500 bg-coral-50'
+                            : locked
+                            ? 'border-nacre-200 bg-nacre-50 opacity-70'
+                            : 'border-nacre-200 bg-white hover:border-coral-300'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2 text-base font-extrabold text-deepSlate-900">
+                          <Icon className={`w-5 h-5 ${active ? 'text-coral-600' : 'text-deepSlate-500'}`} />
+                          {t.label}
+                          {locked && <Lock className="w-4 h-4 text-coral-500" />}
+                        </span>
+                        <span className="block text-sm text-deepSlate-500 mt-0.5">
+                          {locked ? 'Disponible en el plan Crece' : t.hint}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
+                {!hasCrece && (
+                  <button
+                    type="button"
+                    onClick={() => setSimulatedTier(2)}
+                    className="text-sm font-bold text-coral-600 underline min-h-[40px]"
+                  >
+                    Probar el plan Crece
+                  </button>
+                )}
 
-                {/* Step 2: Visual Payment Method Selector */}
-                <div>
-                  <label className="block text-xs font-bold text-deepSlate-700 uppercase tracking-wider mb-2">
-                    2. Método de Pago (Arqueo de Caja)
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {PAYMENT_METHOD_OPTIONS.map((opt) => {
-                      const isLocked = opt.requiresTier2 && planTier < 2;
-                      const isSelected = paymentMethod === opt.id;
-                      const IconComponent =
-                        opt.group === 'cash'
-                          ? Banknote
-                          : opt.group === 'bank'
-                          ? Landmark
-                          : opt.group === 'pos'
-                          ? CreditCard
-                          : Clock;
-
-                      return (
+                {payChoice === 'transfer' && (
+                  <div>
+                    <p className="text-sm font-bold text-deepSlate-700 mb-1.5">¿A qué banco te lo enviaron?</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {BANK_OPTIONS.map((b) => (
                         <button
-                          key={opt.id}
+                          key={b.id}
                           type="button"
-                          disabled={isLocked}
-                          onClick={() => {
-                            if (!isLocked) setPaymentMethod(opt.id);
-                          }}
-                          className={`px-3 py-2 rounded-xl border text-left transition-all flex items-center justify-between ${
-                            isLocked
-                              ? 'bg-nacre-100 border-nacre-200 text-deepSlate-400 cursor-not-allowed opacity-75'
-                              : isSelected
-                              ? 'bg-coral-50 border-coral-500 text-coral-900 font-bold shadow-2xs'
-                              : 'bg-white border-nacre-200 text-deepSlate-700 hover:bg-nacre-50'
+                          onClick={() => setBank(b.id)}
+                          className={`min-h-[48px] rounded-xl text-base font-bold border-2 ${
+                            bank === b.id
+                              ? 'border-coral-500 bg-coral-50 text-coral-700'
+                              : 'border-nacre-200 text-deepSlate-700 hover:border-coral-300'
                           }`}
                         >
-                          <div className="flex items-center space-x-2 min-w-0">
-                            <IconComponent
-                              className={`w-3.5 h-3.5 shrink-0 ${
-                                isSelected ? 'text-coral-600' : 'text-deepSlate-400'
-                              }`}
-                            />
-                            <span className="text-[11px] truncate">{opt.label}</span>
-                          </div>
-                          {isLocked && (
-                            <span className="inline-flex items-center space-x-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-nacre-200 text-deepSlate-600 shrink-0 ml-1">
-                              <Lock className="w-2.5 h-2.5 text-coral-500" />
-                              <span>N2</span>
-                            </span>
-                          )}
+                          {b.label}
                         </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Layaway / Credit Initial Payment & Due Date Input (Tier 2+) */}
-                  {isCreditMode && (
-                    <div className="mt-2.5 p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
-                        <div>
-                          <label className="block text-[11px] font-bold text-amber-900 mb-1">
-                            Abono Inicial (C$)
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            max={totalChargeNio}
-                            step="10"
-                            value={initialPaymentNio}
-                            onChange={(e) => setInitialPaymentNio(e.target.value)}
-                            placeholder="0.00"
-                            className="w-full px-3 py-1.5 text-xs font-mono font-bold rounded-lg bg-white border border-amber-300 focus:outline-none focus:border-coral-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-amber-900 mb-1">
-                            Fecha Límite de Pago *
-                          </label>
-                          <input
-                            type="date"
-                            required={isCreditMode}
-                            value={dueDate}
-                            onChange={(e) => setDueDate(e.target.value)}
-                            className="w-full px-3 py-1.5 text-xs font-mono font-bold rounded-lg bg-white border border-amber-300 focus:outline-none focus:border-coral-500"
-                          />
-                        </div>
-                        <div className="text-right font-mono">
-                          <span className="text-[10px] font-sans font-bold uppercase text-amber-800 block">
-                            Saldo Pendiente ({paymentStatus === 'partial' ? 'Parcial' : 'Pagado'})
-                          </span>
-                          <span className="text-sm font-extrabold text-amber-900 block">
-                            C$ {balanceDueNio.toFixed(2)}
-                          </span>
-                          <span className="text-[10px] text-amber-700">
-                            ≈ ${(balanceDueNio / exchangeRate).toFixed(2)} USD
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Step 3: Customer Fields (Required in Credit Mode, Optional otherwise) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-deepSlate-600 uppercase tracking-wider mb-1">
-                      Nombre del Cliente {isCreditMode ? <span className="text-rose-600">* (Obligatorio)</span> : '(Opcional)'}
-                    </label>
-                    <div className="relative">
-                      <User className="w-3.5 h-3.5 text-deepSlate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        required={isCreditMode}
-                        placeholder="Ej. María Fernanda López"
-                        value={customerName}
-                        onChange={(e) => setCustomerName(e.target.value)}
-                        className={`w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-nacre-50 border focus:outline-none focus:border-coral-500 ${
-                          isCreditMode && !customerName.trim() ? 'border-amber-300 bg-amber-50/30' : 'border-nacre-200'
-                        }`}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-deepSlate-600 uppercase tracking-wider mb-1">
-                      WhatsApp del Cliente {isCreditMode ? <span className="text-rose-600">* (Obligatorio)</span> : '(Opcional)'}
-                    </label>
-                    <div className="relative">
-                      <Phone className="w-3.5 h-3.5 text-deepSlate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="tel"
-                        required={isCreditMode}
-                        placeholder="Ej. 50588888888"
-                        value={customerPhone}
-                        onChange={(e) => setCustomerPhone(e.target.value)}
-                        className={`w-full pl-9 pr-3 py-2 text-xs font-mono rounded-xl bg-nacre-50 border focus:outline-none focus:border-coral-500 ${
-                          isCreditMode && !customerPhone.trim() ? 'border-amber-300 bg-amber-50/30' : 'border-nacre-200'
-                        }`}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Promo tag if Tier 2+ */}
-                {planTier >= 2 && (
-                  <div>
-                    <label className="block text-[11px] font-bold text-deepSlate-600 uppercase tracking-wider mb-1">
-                      Etiqueta de Promoción (Opcional)
-                    </label>
-                    <div className="relative">
-                      <Tag className="w-3.5 h-3.5 text-deepSlate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        placeholder="Ej. Promo Quincena, Descuento VIP, Feria..."
-                        value={promoTag}
-                        onChange={(e) => setPromoTag(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500"
-                      />
+                      ))}
                     </div>
                   </div>
                 )}
 
-                {/* Live Financial Snapshot Preview */}
-                <div className="p-4 rounded-2xl bg-nacre-50 border border-nacre-200 space-y-2 text-xs">
-                  <div className="flex items-center justify-between font-bold text-deepSlate-700 pb-1 border-b border-nacre-200">
-                    <span className="flex items-center space-x-1.5">
-                      <Coins className="w-4 h-4 text-coral-500" />
-                      <span>Resumen de Snapshot Inmutable</span>
-                    </span>
-                    <span className="font-mono text-[11px] text-deepSlate-500">
-                      {getPaymentMethodLabel(paymentMethod)} • Tasa C$ {exchangeRate.toFixed(2)}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between font-mono">
-                    <span className="font-sans text-deepSlate-500">Total a Cobrar en Córdobas:</span>
-                    <span className="font-extrabold text-sm text-coral-600">
-                      C$ {totalChargeNio.toFixed(2)}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between font-mono">
-                    <span className="font-sans text-deepSlate-500">Equivalente en Dólares:</span>
-                    <span className="font-bold text-deepSlate-900">
-                      ${totalChargeUsd.toFixed(2)} USD
-                    </span>
-                  </div>
-
-                  {role !== 'seller' && (
-                    <div className="flex justify-between font-mono pt-1.5 border-t border-nacre-200/70">
-                      <span className="font-sans text-emerald-700 font-bold flex items-center space-x-1">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>Utilidad Neta Congelada (Costo ${unitCostUsd.toFixed(2)}):</span>
-                      </span>
-                      <span className="font-extrabold text-emerald-600">
-                        +${netProfitUsd.toFixed(2)} USD
-                      </span>
+                {isCreditMode && (
+                  <div className="rounded-2xl bg-amber-50/70 border border-amber-200 p-4 space-y-3">
+                    <div>
+                      <label className={labelCls}>¿Cuánto te dejó ahora? (si no dejó nada, deja en blanco)</label>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        max={totalChargeNio}
+                        placeholder="C$ 0"
+                        value={initialPaymentNio}
+                        onChange={(e) => setInitialPaymentNio(e.target.value)}
+                        className={inputCls}
+                      />
                     </div>
+                    {parsedAbonoNio > 0 && (
+                      <div>
+                        <label className={labelCls}>¿Cómo te dio ese abono?</label>
+                        <select
+                          value={abonoMethod}
+                          onChange={(e) => setAbonoMethod(e.target.value as PaymentMethod)}
+                          className={inputCls}
+                        >
+                          {PAYMENT_METHOD_OPTIONS.filter((m) => m.id !== 'credit_layaway').map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.shortLabel}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <div>
+                      <label className={labelCls}>¿Hasta qué fecha te va a pagar el resto?</label>
+                      <input
+                        type="date"
+                        value={dueDate}
+                        min={localIsoDate()}
+                        onChange={(e) => setDueDate(e.target.value)}
+                        className={inputCls}
+                      />
+                    </div>
+                  </div>
+                )}
+              </section>
+            </div>
+
+            {/* Pie fijo: total grande + guardar */}
+            <div className="border-t border-nacre-200 bg-white px-5 sm:px-6 py-4 space-y-3">
+              {errorMessage && (
+                <div
+                  role="alert"
+                  className="flex items-start gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-sm font-semibold text-rose-700"
+                >
+                  <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold text-deepSlate-500">Total a cobrar</p>
+                  <p className="text-4xl font-extrabold text-coral-600 leading-none">{money(totalChargeNio)}</p>
+                  {isCreditMode && balanceDueNio > 0 ? (
+                    <p className="text-sm font-bold text-amber-700 mt-1">
+                      Te quedará debiendo {money(balanceDueNio)}
+                    </p>
+                  ) : (
+                    totalDiscountNio > 0 && (
+                      <p className="text-sm text-deepSlate-500 mt-1">Con descuento de {money(totalDiscountNio)}</p>
+                    )
                   )}
                 </div>
+                <p className="text-sm text-deepSlate-500 text-right">≈ {moneyUsd(totalChargeUsd)}</p>
               </div>
-            )}
-
-            {/* Footer Actions */}
-            <div className="pt-3 border-t border-nacre-200 flex items-center justify-end space-x-3">
-              <button
-                type="button"
-                onClick={resetAndClose}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold text-deepSlate-600 hover:bg-nacre-100"
-              >
-                Cancelar
-              </button>
               <button
                 type="submit"
-                disabled={!activeProd || isSaving || activeProd.stock_current <= 0}
-                className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-coral-500 hover:bg-coral-600 shadow-md shadow-coral-500/25 active:scale-95 transition-all flex items-center space-x-2 disabled:opacity-50"
+                disabled={isSaving}
+                className="w-full min-h-[56px] rounded-xl text-lg font-extrabold text-white bg-coral-500 hover:bg-coral-600 active:scale-[0.99] disabled:opacity-60 shadow-md shadow-coral-500/25"
               >
-                <span>{isSaving ? 'Registrando salida...' : 'Confirmar Venta y Generar Recibo'}</span>
-                <ArrowRight className="w-4 h-4" />
+                {isSaving ? 'Guardando…' : 'Guardar venta'}
               </button>
             </div>
           </form>

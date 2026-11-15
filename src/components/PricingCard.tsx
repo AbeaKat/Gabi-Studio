@@ -1,5 +1,6 @@
-import React from 'react';
+﻿import React from 'react';
 import { Check, ShieldCheck, Sparkles, MessageCircle, ArrowRight, UserPlus } from 'lucide-react';
+import { OFFICIAL_WHATSAPP_NUMBER } from '../data/realInventoryData';
 
 export interface TierFeature {
   text: string;
@@ -21,66 +22,61 @@ export interface TierData {
 export const TIERS_DATA: TierData[] = [
   {
     id: 1,
-    name: 'Nivel 1: Esencial',
-    tagline: 'Ideal para tiendas y emprendedores que desean orden total en inventario, caja y ganancias.',
-    profilesIncluded: '1 Perfil Dueño incluido (+ opción de perfiles extra)',
-    ctaText: 'Contratar Nivel 1',
-    whatsappMessage: 'Hola Gabi Studio! Deseo solicitar información para contratar el Nivel 1 (Esencial) del sistema.',
+    name: 'Básico',
+    tagline: 'Para vender con orden: sabes qué tienes, qué vendiste y cuánto ganaste.',
+    profilesIncluded: '1 usuario dueño (puedes agregar más)',
+    ctaText: 'Quiero el plan Básico',
+    whatsappMessage: 'Hola Gabi Studio! Quiero información del plan Básico.',
     features: [
-      { text: 'Vista de inventario rápida estilo ClickUp y edición en línea' },
-      { text: 'Bimoneda nativa (USD $ y Córdobas C$) con tasa editable' },
-      { text: 'Venta Rápida (1 a 1) con Recibo Digital enviado por WhatsApp', highlight: true },
-      { text: 'Arqueo de Caja por Método de Pago (Efectivo C$/USD, BAC, Lafise, Banpro, POS)', highlight: true },
-      { text: 'Calculadora de Cuadre de Efectivo en Gaveta (detección de faltantes/sobrantes)' },
-      { text: 'Cierre Diario masivo por Excel/CSV o Checklist rápido' },
-      { text: 'Snapshots financieros inmutables y Dashboard de Utilidad Bruta' },
+      { text: 'Anota tus ventas en segundos y envía el recibo por WhatsApp', highlight: true },
+      { text: 'Mira cuánto te queda de cada producto y cuáles se están acabando', highlight: true },
+      { text: 'Precios en córdobas y dólares, con el dólar del día que tú decidas' },
+      { text: 'Pantalla de inicio: cuánto vendiste, cuánto ganaste y cuánto te deben' },
+      { text: 'Sube tus ventas del día desde Excel si ya las llevas ahí' },
     ],
   },
   {
     id: 2,
-    name: 'Nivel 2: Crecimiento',
-    tagline: 'Para negocios con vendedores que importan mercadería, dan crédito/apartados y controlan gastos.',
+    name: 'Crece',
+    tagline: 'Para saber cuánto ganas de verdad en cada producto y trabajar con vendedores.',
     badge: 'MÁS POPULAR',
     isPopular: true,
-    profilesIncluded: '1 Perfil Dueño + 1 Perfil Vendedor incluidos',
-    ctaText: 'Contratar Nivel 2',
-    whatsappMessage: 'Hola Gabi Studio! Deseo información para contratar el Nivel 2 (Crecimiento) con control de apartados y lotes.',
+    profilesIncluded: '1 dueño + 1 vendedor incluidos',
+    ctaText: 'Quiero el plan Crece',
+    whatsappMessage: 'Hola Gabi Studio! Quiero información del plan Crece.',
     features: [
-      { text: 'Todo lo incluido en el Nivel 1', highlight: true },
-      { text: 'Control de Cuentas por Cobrar (Créditos, Fiados y Apartados) con cobro WhatsApp en 1 clic', highlight: true },
-      { text: 'Semáforo de Punto de Equilibrio Mensual (Gastos Fijos + Meta Salario del Dueño)', highlight: true },
-      { text: 'Rol Vendedor protegido: oculta costos y márgenes de ganancia' },
-      { text: 'Calculadora de Importación por Lote (prorrateo Envío, Amazon, DHL/Aduana)' },
-      { text: 'Barra visual de Recuperación de Inversión (ROI) por Lote y Gastos Operativos' },
-      { text: 'Motor de Promociones y Descuentos comerciales desbloqueado' },
+      { text: 'Todo lo del plan Básico', highlight: true },
+      { text: 'Calcula el costo real de lo que importas (producto + envío + impuestos)', highlight: true },
+      { text: 'Te sugiere a cuánto vender para ganar lo que quieres' },
+      { text: 'Tus vendedores venden, pero no ven costos ni ganancias' },
+      { text: 'Controla clientes que te deben y cobra por WhatsApp' },
+      { text: 'Registra tus gastos y descubre si estás ganando o perdiendo' },
     ],
   },
   {
     id: 3,
-    name: 'Nivel 3: ERP Completo',
-    tagline: 'Inteligencia de capital, auditoría de bodega y contabilidad lista para empresas en expansión.',
-    badge: 'MÁXIMO CONTROL',
-    profilesIncluded: '1 Perfil Global + 2 Perfiles Vendedores incluidos',
-    ctaText: 'Contratar Nivel 3',
-    whatsappMessage: 'Hola Gabi Studio! Deseo contratar el Nivel 3 (ERP Completo) con Matriz ABC, Paquete Contable y Kardex.',
+    name: 'Pro',
+    tagline: 'Para negocios que quieren control total y reportes listos para su contador.',
+    badge: 'CONTROL TOTAL',
+    profilesIncluded: '1 dueño + 2 vendedores incluidos',
+    ctaText: 'Quiero el plan Pro',
+    whatsappMessage: 'Hola Gabi Studio! Quiero información del plan Pro.',
     features: [
-      { text: 'Todo lo incluido en Nivel 1 y Nivel 2', highlight: true },
-      { text: 'Radar de Rotación — Matriz ABC (Productos Estrella vs. Capital Estancado "Hueso")', highlight: true },
-      { text: 'Paquete Contable Multihierro en Excel (.xlsx de 4 pestañas listo para el contador)', highlight: true },
-      { text: 'Estado de Resultados mensual (P&L detallado con mermas y gastos)' },
-      { text: 'Multibodega, Consignación y Kardex Auditable (mermas, daños, retornos)' },
-      { text: 'Historial global de auditoría de cambios de precios y costos' },
-      { text: 'Soporte prioritario y asesoría personalizada de puesta en marcha' },
+      { text: 'Todo lo del plan Crece', highlight: true },
+      { text: 'Historial de todo: quién cambió un precio, qué se dañó o se prestó', highlight: true },
+      { text: 'Reporte mensual de ganancias detallado' },
+      { text: 'Descubre qué productos se venden más y cuáles están parados' },
+      { text: 'Reportes en Excel para tu contador' },
+      { text: 'Acompañamiento personalizado para empezar' },
     ],
   },
 ];
-
 interface PricingCardsSectionProps {
   phoneNumber?: string;
 }
 
 export const PricingCardsSection: React.FC<PricingCardsSectionProps> = ({
-  phoneNumber = '50588888888',
+  phoneNumber = OFFICIAL_WHATSAPP_NUMBER,
 }) => {
   const handleOpenWhatsApp = (message: string) => {
     const url = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
@@ -95,13 +91,13 @@ export const PricingCardsSection: React.FC<PricingCardsSectionProps> = ({
         <div className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-coral-50 border border-coral-200 text-coral-600 text-xs font-bold uppercase tracking-wider mb-4">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Licenciamiento y Planes Flexibles</span>
+            <span>Planes</span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-deepSlate-900 tracking-tight">
-            Diseñado para escalar con el ritmo de tu negocio
+            Elige el plan que se ajusta a tu negocio
           </h2>
           <p className="mt-4 text-base sm:text-lg text-deepSlate-500">
-            Elige el nivel adecuado según el tamaño de tu equipo, tus necesidades de costeo de importación y el nivel de privacidad que requieres.
+            Empieza con lo básico y pasa a otro plan cuando lo necesites. Sin letra pequeña.
           </p>
         </div>
 
@@ -159,7 +155,7 @@ export const PricingCardsSection: React.FC<PricingCardsSectionProps> = ({
                   {/* Feature Checklist */}
                   <div className="border-t border-nacre-200 pt-6">
                     <p className="text-xs font-bold uppercase tracking-wider text-deepSlate-700 mb-4">
-                      ¿Qué incluye este nivel?
+                      ¿Qué incluye?
                     </p>
                     <ul className="space-y-3">
                       {tier.features.map((feature, idx) => (
@@ -230,4 +226,5 @@ export const PricingCardsSection: React.FC<PricingCardsSectionProps> = ({
     </section>
   );
 };
+
 

@@ -1,11 +1,12 @@
 import React from 'react';
 import { Sparkles, MessageCircle, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { OFFICIAL_WHATSAPP_NUMBER } from '../data/realInventoryData';
 
 export const Footer: React.FC = () => {
   const handleWhatsApp = () => {
     const text = encodeURIComponent('Hola Gabi Studio! Deseo comunicarme con el equipo de soporte.');
-    window.open(`https://wa.me/50588888888?text=${text}`, '_blank');
+    window.open(`https://wa.me/${OFFICIAL_WHATSAPP_NUMBER}?text=${text}`, '_blank');
   };
 
   return (

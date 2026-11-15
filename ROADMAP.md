@@ -42,8 +42,8 @@ Instrucciones para el Agente (Antigravity): A medida que completes una tarea, ma
 - [x] **Nivel 2 y 3:** Gestión de Perfiles y Roles (verificación de límite de asientos según `max_owner_profiles`, `max_seller_profiles` y `extra_paid_profiles`).
 - [x] **Nivel 3:** Vista de **Historial de Precios (`price_history`)**, ajustes de Kardex por mermas/daños y **Estado de Resultados (P&L)** mensual.
 
-> **Ajustes Técnicos Sprint 4 & Datos Reales de Inventario:**
-> - Se integró la base de datos real en [`realInventoryData.ts`](src/data/realInventoryData.ts) con los 4 lotes del Excel (**1. Línea Wayuu**, **2. Inventario Stella**, **3. Inventario 3 - Georgina**, **4. Inventario 4 - Georgina** — 116 SKUs únicos y 126 unidades físicas con sus costos base, prorrateos Amazon/Envío/DHL y precios en USD y Córdobas `C$`), manteniendo la Landing Page (`/`) 100% libre de datos privados.
+> **Ajustes Técnicos Sprint 4 & Datos de Catálogo Multi-Lote:**
+> - Se integró el catálogo demo en [`realInventoryData.ts`](src/data/realInventoryData.ts) con 4 lotes comerciales (**1. Colección Artesanal & Accesorios**, **2. Línea Ejecutiva Principal**, **3. Importación Lote 3 (Consolidado)**, **4. Importación Lote 4 (Proveedores)** — 116 SKUs únicos y 126 unidades físicas con sus costos base, prorrateos Amazon/Envío/DHL y precios en USD y Córdobas `C$`), manteniendo toda la plataforma 100% libre de referencias a clientes piloto.
 > - Se implementó [`BatchesPage.tsx`](src/pages/BatchesPage.tsx) (`/app/batches`) con prorrateo equitativo por ítem o proporcional al costo, actualizando `landed_cost_usd` y registrando auditoría automática en `price_history`.
 > - Se implementó [`AuditPage.tsx`](src/pages/AuditPage.tsx) (`/app/audit`) para Nivel 3 con registro de Kardex (mermas/averías, salidas a consignación y conteo físico) y tabla global auditable de `price_history`.
 > - Se implementó [`ProfilesPage.tsx`](src/pages/ProfilesPage.tsx) (`/app/team`) con validación de cupos (`max_owner_profiles`, `max_seller_profiles`, `extra_paid_profiles`) y conmutador instantáneo de los 4 perfiles de prueba por nivel.
@@ -62,3 +62,19 @@ Instrucciones para el Agente (Antigravity): A medida que completes una tarea, ma
   - [x] Panel **Inteligencia de Capital: Productos Estrella vs. Capital Estancado (Matriz ABC)** que detecta productos Clase A con alerta de reposición (`stock_current <= 2`) y productos Clase C ("Hueso") con sugerencia automática de liquidación del 15%.
   - [x] Exportador **Paquete Contable Multihierro (.xlsx)** con 4 pestañas listas para el contador: `1_Resumen_PL`, `2_Detalle_Ventas_COGS`, `3_Gastos_Operativos` y `4_Kardex_y_Mermas`.
   - [x] Actualización comercial de `TIERS_DATA` en `src/components/PricingCard.tsx`.
+
+## Sprint 6: Pulido Final para Producción, Sanitización 100%, Upsert de Catálogo y Sincronización SQL
+- [x] **Sanitización Total de Privacidad (100% Agnóstico):**
+  - [x] Credenciales demo actualizadas a `@gabistudio-demo.com` (`demo2026`), empresa `'Comercial & Distribuidora Demo'`, lotes renombrados comercialmente (`1. Colección Artesanal & Accesorios`, `2. Línea Ejecutiva Principal`, `3. Importación Lote 3 (Consolidado)`, `4. Importación Lote 4 (Proveedores)`), SKUs artesanales renombrados a `ART-` y versión de seed actualizada a `gabi-studio-clean-v3`.
+  - [x] Limpieza total en `LoginPage.tsx`, `InventoryPage.tsx` (exportación Excel con nombre dinámico de empresa y filtros dinámicos) y `ProfilesPage.tsx`.
+- [x] **Centralización de Número Comercial de WhatsApp:**
+  - [x] Constante `OFFICIAL_WHATSAPP_NUMBER` (`import.meta.env.VITE_WHATSAPP_NUMBER || '50588888888'`) integrada en `Navbar.tsx`, `Footer.tsx`, `LandingPage.tsx`, `LoginPage.tsx`, `AppLayout.tsx`, `PricingCard.tsx` y `WhatsAppFloatingButton.tsx`.
+- [x] **Precisión Contable en Arqueo de Caja y Liquidez Real:**
+  - [x] Filtro rápido `"Arqueo de Hoy"` vs. `"Acumulado Histórico"` en `ClosingPage.tsx`.
+  - [x] Selector de método de pago al registrar abonos de créditos/apartados en `FinancePage.tsx` (`abono_payment_method`), evitando inflar la gaveta física cuando el abono entra por transferencia bancaria o POS.
+  - [x] Desglose en la Tarjeta KPI **"5. Ganancia Bruta Real"** entre **Cobrada en Mano** y **Por Cobrar (Crédito)**.
+- [x] **Upsert Inteligente en Importador Excel (`ImportCatalogModal.tsx` y `InventoryPage.tsx`):**
+  - [x] Detección automática en vista previa con badges **"Nuevo SKU"** vs. **"Actualización de SKU existente"** y actualización sin duplicados con registro automático en `PriceHistory`.
+- [x] **Sincronización SQL Completa (`supabase/schema.sql` y `DATABASE.md`):**
+  - [x] Tablas `public.operating_expenses` y `public.kardex_movements` añadidas con índices `tenant_id` y políticas RLS completas (`SELECT`, `INSERT`, `UPDATE`, `DELETE` con `public.current_user_tenant_id()`).
+

@@ -7,22 +7,28 @@ import {
   AlertTriangle,
   CheckCircle2,
   ArrowRight,
+  ArrowLeft,
   Loader2,
-  Table,
-  HelpCircle
+  Download,
 } from 'lucide-react';
 import { Product, Batch } from '../../types';
+import { fmtNio, fmtUsd } from './inventoryHelpers';
 
 interface ImportCatalogModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onImportSuccess: (products: Partial<Product>[], newBatches: string[]) => Promise<void>;
+  onImportSuccess: (
+    products: (Partial<Product> & { batchName?: string })[],
+    newBatches: string[]
+  ) => Promise<void>;
   batches: Batch[];
+  existingProducts?: Product[];
   exchangeRate: number;
   role: string;
 }
 
 interface ParsedRow {
+  line: number;
   sku: string;
   name: string;
   batchName: string;
@@ -31,63 +37,66 @@ interface ParsedRow {
   priceUsd: number;
   priceNio: number;
   isValid: boolean;
+  isUpdate: boolean;
   error?: string;
 }
+
+const STEPS = ['Elige tu archivo', 'Revisa los datos', 'Listo'];
 
 export const ImportCatalogModal: React.FC<ImportCatalogModalProps> = ({
   isOpen,
   onClose,
   onImportSuccess,
   batches,
+  existingProducts = [],
   exchangeRate,
   role,
 }) => {
+  const isOwner = role !== 'seller';
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [file, setFile] = useState<File | null>(null);
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [stats, setStats] = useState({ total: 0, valid: 0, invalid: 0 });
+  const [error, setError] = useState<string | null>(null);
+  const [importedCount, setImportedCount] = useState(0);
+  const [showOnlyProblems, setShowOnlyProblems] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      processFile(selectedFile);
-    }
+  const reset = () => {
+    setStep(1);
+    setFile(null);
+    setParsedRows([]);
+    setError(null);
+    setShowOnlyProblems(false);
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const droppedFile = e.dataTransfer.files?.[0];
-    if (droppedFile) {
-      processFile(droppedFile);
-    }
+  const close = () => {
+    reset();
+    onClose();
   };
 
-  const processFile = (fileToProcess: File) => {
-    setFile(fileToProcess);
-    setIsProcessing(true);
+  const valid = parsedRows.filter((r) => r.isValid);
+  const invalid = parsedRows.filter((r) => !r.isValid);
+  const newCount = valid.filter((r) => !r.isUpdate).length;
+  const updCount = valid.filter((r) => r.isUpdate).length;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-
-        parseRows(jsonData);
-      } catch (err) {
-        console.error('Error leyendo archivo Excel/CSV:', err);
-        alert('No se pudo procesar el archivo. Asegúrate de que sea un archivo Excel (.xlsx, .xls) o CSV válido.');
-      } finally {
-        setIsProcessing(false);
-      }
-    };
-    reader.readAsArrayBuffer(fileToProcess);
+  const downloadTemplate = () => {
+    const rows: Record<string, any>[] = [
+      {
+        Producto: 'Camisa azul talla M',
+        Cantidad: 10,
+        ...(isOwner ? { 'Costo US$': 4.5 } : {}),
+        'Precio US$': 9,
+        'Precio C$': 330,
+      },
+    ];
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Mis productos');
+    XLSX.writeFile(wb, 'Plantilla_mis_productos.xlsx');
   };
 
   const normalizeKey = (key: string) => key.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -95,111 +104,71 @@ export const ImportCatalogModal: React.FC<ImportCatalogModalProps> = ({
   const parseRows = (rawRows: any[]) => {
     const rows: ParsedRow[] = [];
     const seenSkus = new Set<string>();
-    let validCount = 0;
-    let invalidCount = 0;
+    const existingSkuSet = new Set(existingProducts.map((p) => p.sku.trim().toUpperCase()));
 
     rawRows.forEach((row, idx) => {
-      const keys = Object.keys(row);
-      const rowNormalized: Record<string, any> = {};
-      keys.forEach((k) => {
-        rowNormalized[normalizeKey(k)] = row[k];
-      });
+      const n: Record<string, any> = {};
+      Object.keys(row).forEach((k) => (n[normalizeKey(k)] = row[k]));
 
-      // Detect SKU
-      const rawSku =
-        rowNormalized['sku'] ||
-        rowNormalized['codigo'] ||
-        rowNormalized['cod'] ||
-        rowNormalized['item'] ||
-        rowNormalized['referencia'] ||
-        `SKU-${idx + 1}`;
-
-      const sku = String(rawSku).trim();
-
-      // Detect Name
       const name = String(
-        rowNormalized['nombre'] ||
-        rowNormalized['descripcion'] ||
-        rowNormalized['producto'] ||
-        rowNormalized['name'] ||
-        rowNormalized['desc'] ||
-        ''
+        n['nombre'] || n['descripcion'] || n['producto'] || n['name'] || n['desc'] || ''
       ).trim();
+      const rawSku =
+        n['sku'] || n['codigo'] || n['cod'] || n['item'] || n['referencia'] || '';
+      const sku = String(rawSku).trim() || `SKU-${idx + 1}`;
+      const upperSku = sku.toUpperCase();
 
-      // Detect Batch / Category
       const batchName = String(
-        rowNormalized['lote'] ||
-        rowNormalized['categoria'] ||
-        rowNormalized['batch'] ||
-        rowNormalized['coleccion'] ||
-        rowNormalized['grupo'] ||
-        'Inventario General'
+        n['lote'] || n['categoria'] || n['batch'] || n['coleccion'] || n['grupo'] || 'Inventario General'
       ).trim();
 
-      // Detect Stock
       const rawStock =
-        rowNormalized['stock'] ||
-        rowNormalized['cantidad'] ||
-        rowNormalized['cant'] ||
-        rowNormalized['qty'] ||
-        rowNormalized['existencias'] ||
-        1;
+        n['stock'] || n['cantidad'] || n['cant'] || n['qty'] || n['existencias'] || 1;
       const stock = Math.max(0, parseInt(String(rawStock), 10) || 0);
 
-      // Detect Cost USD
-      const rawCost =
-        rowNormalized['costo'] ||
-        rowNormalized['costousd'] ||
-        rowNormalized['cost'] ||
-        rowNormalized['costobase'] ||
-        rowNormalized['unitcost'] ||
-        0;
-      const costUsd = Math.max(0, parseFloat(String(rawCost)) || 0);
+      const costUsd = Math.max(
+        0,
+        parseFloat(
+          String(n['costo'] || n['costousd'] || n['cost'] || n['costobase'] || n['unitcost'] || 0)
+        ) || 0
+      );
+      const priceUsd = Math.max(
+        0,
+        parseFloat(
+          String(n['precio'] || n['preciousd'] || n['price'] || n['precioventa'] || n['pvp'] || 0)
+        ) || 0
+      );
+      let priceNio =
+        parseFloat(
+          String(
+            n['precionic'] ||
+              n['precionio'] ||
+              n['cordobas'] ||
+              n['preciocordobas'] ||
+              n['precioc'] ||
+              n['precioc$'] ||
+              0
+          )
+        ) || 0;
+      if (priceNio === 0 && priceUsd > 0) priceNio = Math.round(priceUsd * exchangeRate * 100) / 100;
 
-      // Detect Price USD
-      const rawPrice =
-        rowNormalized['precio'] ||
-        rowNormalized['preciousd'] ||
-        rowNormalized['price'] ||
-        rowNormalized['precioventa'] ||
-        rowNormalized['pvp'] ||
-        0;
-      const priceUsd = Math.max(0, parseFloat(String(rawPrice)) || 0);
-
-      // Detect Price NIO
-      const rawPriceNio =
-        rowNormalized['precionic'] ||
-        rowNormalized['precionio'] ||
-        rowNormalized['cordobas'] ||
-        rowNormalized['preciocordobas'] ||
-        rowNormalized['precioc'] ||
-        0;
-      let priceNio = parseFloat(String(rawPriceNio)) || 0;
-      if (priceNio === 0 && priceUsd > 0) {
-        priceNio = Math.round(priceUsd * exchangeRate * 100) / 100;
-      }
-
-      // Validation
       let isValid = true;
-      let error = '';
-
-      if (!sku) {
+      let err = '';
+      if (!name && !rawSku) {
         isValid = false;
-        error = 'SKU vacío';
-      } else if (seenSkus.has(sku)) {
+        err = 'No tiene nombre ni código. Escribe el nombre del producto.';
+      } else if (seenSkus.has(upperSku)) {
         isValid = false;
-        error = `SKU duplicado (${sku})`;
+        err = `Está repetido en el archivo (${sku}).`;
+      } else if (priceUsd === 0 && priceNio === 0) {
+        isValid = false;
+        err = 'Falta el precio de venta.';
       } else {
-        seenSkus.add(sku);
-      }
-
-      if (isValid) {
-        validCount++;
-      } else {
-        invalidCount++;
+        seenSkus.add(upperSku);
       }
 
       rows.push({
+        line: idx + 2,
         sku,
         name: name || `Producto ${sku}`,
         batchName: batchName || 'Inventario General',
@@ -208,258 +177,361 @@ export const ImportCatalogModal: React.FC<ImportCatalogModalProps> = ({
         priceUsd,
         priceNio,
         isValid,
-        error,
+        isUpdate: isValid && existingSkuSet.has(upperSku),
+        error: err,
       });
     });
 
     setParsedRows(rows);
-    setStats({ total: rows.length, valid: validCount, invalid: invalidCount });
+  };
+
+  const processFile = (f: File) => {
+    setError(null);
+    setFile(f);
+    setIsProcessing(true);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: 'array' });
+        const json: any[] = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+        if (json.length === 0) {
+          setError('El archivo está vacío. Revisa que tenga al menos un producto.');
+          setFile(null);
+        } else {
+          parseRows(json);
+          setStep(2);
+        }
+      } catch (err) {
+        console.error('Error leyendo archivo:', err);
+        setError('No pudimos leer ese archivo. Usa un Excel (.xlsx, .xls) o CSV.');
+        setFile(null);
+      } finally {
+        setIsProcessing(false);
+      }
+    };
+    reader.onerror = () => {
+      setError('No pudimos abrir el archivo. Intenta de nuevo.');
+      setFile(null);
+      setIsProcessing(false);
+    };
+    reader.readAsArrayBuffer(f);
   };
 
   const handleConfirmImport = async () => {
-    const validRows = parsedRows.filter((r) => r.isValid);
-    if (validRows.length === 0) return;
-
+    if (valid.length === 0) return;
     setIsSaving(true);
+    setError(null);
     try {
-      // Find any new batches to create
       const existingBatchNames = new Set(batches.map((b) => b.name.toLowerCase()));
       const newBatchesToCreate = Array.from(
-        new Set(
-          validRows
-            .map((r) => r.batchName)
-            .filter((name) => !existingBatchNames.has(name.toLowerCase()))
-        )
+        new Set(valid.map((r) => r.batchName).filter((nm) => !existingBatchNames.has(nm.toLowerCase())))
       );
-
-      const productsToImport: Partial<Product>[] = validRows.map((r) => ({
+      const items: (Partial<Product> & { batchName?: string })[] = valid.map((r) => ({
         sku: r.sku,
         name: r.name,
+        batchName: r.batchName,
         stock_current: r.stock,
-        base_cost_usd: r.costUsd,
-        landed_cost_usd: r.costUsd,
+        ...(isOwner ? { base_cost_usd: r.costUsd, landed_cost_usd: r.costUsd } : {}),
         price_usd: r.priceUsd,
         price_nio: r.priceNio,
       }));
-
-      await onImportSuccess(productsToImport, newBatchesToCreate);
-      onClose();
+      await onImportSuccess(items, newBatchesToCreate);
+      setImportedCount(valid.length);
+      setStep(3);
     } catch (err) {
       console.error('Error guardando importación:', err);
-      alert('Ocurrió un error al guardar los productos en la base de datos.');
+      setError('Algo salió mal al guardar. No se perdió nada, intenta de nuevo.');
     } finally {
       setIsSaving(false);
     }
   };
 
+  const visibleRows = (showOnlyProblems ? invalid : parsedRows).slice(0, 100);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-deepSlate-900/40 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-3xl max-w-4xl w-full border border-nacre-200 shadow-modal-depth flex flex-col max-h-[90vh] overflow-hidden animate-modal-enter">
-        
-        {/* Header */}
-        <div className="px-6 py-5 border-b border-nacre-200 flex items-center justify-between bg-nacre-50/60">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-coral-50 border border-coral-200 flex items-center justify-center text-coral-600">
-              <FileSpreadsheet className="w-5 h-5" />
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-deepSlate-900/40 backdrop-blur-sm">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-3xl w-full border border-nacre-200 shadow-xl flex flex-col max-h-[95vh] overflow-hidden">
+        {/* Encabezado + pasos */}
+        <div className="px-6 py-5 border-b border-nacre-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-coral-50 border border-coral-200 flex items-center justify-center text-coral-600">
+                <FileSpreadsheet className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-xl text-deepSlate-900">Subir mi lista de productos</h3>
+                <p className="text-sm text-deepSlate-500">Desde un archivo de Excel o CSV</p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-extrabold text-base sm:text-lg text-deepSlate-900">
-                Importador de Catálogo Excel / CSV
-              </h3>
-              <p className="text-xs text-deepSlate-500">
-                Procesamiento directo en tu navegador con validación previa de códigos y precios
-              </p>
-            </div>
+            <button
+              onClick={close}
+              aria-label="Cerrar"
+              className="min-w-[44px] min-h-[44px] rounded-xl text-deepSlate-400 hover:bg-nacre-100 flex items-center justify-center"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl text-deepSlate-400 hover:text-deepSlate-700 hover:bg-nacre-100 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <ol className="flex items-center gap-2 mt-4">
+            {STEPS.map((label, i) => {
+              const n = i + 1;
+              const done = step > n;
+              const active = step === n;
+              return (
+                <li key={label} className="flex items-center gap-2 flex-1 min-w-0">
+                  <span
+                    className={`w-8 h-8 rounded-full text-sm font-extrabold flex items-center justify-center shrink-0 ${
+                      done
+                        ? 'bg-emerald-500 text-white'
+                        : active
+                        ? 'bg-coral-500 text-white'
+                        : 'bg-nacre-200 text-deepSlate-500'
+                    }`}
+                  >
+                    {done ? '✓' : n}
+                  </span>
+                  <span
+                    className={`text-sm truncate ${
+                      active ? 'font-bold text-deepSlate-900' : 'text-deepSlate-500'
+                    } ${active ? '' : 'hidden sm:inline'}`}
+                  >
+                    {label}
+                  </span>
+                  {n < 3 && <span className="flex-1 h-0.5 bg-nacre-200 hidden sm:block" />}
+                </li>
+              );
+            })}
+          </ol>
         </div>
 
-        {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          
-          {/* Upload Dropzone */}
-          {!file ? (
-            <div
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-coral-200 hover:border-coral-400 bg-coral-50/20 hover:bg-coral-50/40 rounded-3xl p-8 sm:p-12 text-center cursor-pointer transition-all flex flex-col items-center justify-center group"
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-              <div className="w-14 h-14 rounded-2xl bg-white shadow-md shadow-coral-500/10 flex items-center justify-center text-coral-500 mb-4 group-hover:scale-105 transition-transform">
-                {isProcessing ? <Loader2 className="w-7 h-7 animate-spin" /> : <Upload className="w-7 h-7" />}
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          {error && (
+            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm flex items-start gap-2">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* PASO 1 */}
+          {step === 1 && (
+            <div className="space-y-4">
+              <div
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const f = e.dataTransfer.files?.[0];
+                  if (f) processFile(f);
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-coral-300 hover:border-coral-500 bg-coral-50/30 rounded-3xl p-8 sm:p-12 text-center cursor-pointer flex flex-col items-center"
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) processFile(f);
+                    e.target.value = '';
+                  }}
+                />
+                <div className="w-14 h-14 rounded-2xl bg-white shadow-md flex items-center justify-center text-coral-500 mb-4">
+                  {isProcessing ? <Loader2 className="w-7 h-7 animate-spin" /> : <Upload className="w-7 h-7" />}
+                </div>
+                <p className="text-base font-bold text-deepSlate-900">
+                  {isProcessing ? 'Leyendo tu archivo...' : 'Toca aquí para elegir tu archivo'}
+                </p>
+                <p className="text-sm text-deepSlate-500 mt-1">o arrástralo hasta este cuadro</p>
               </div>
-              <p className="text-sm sm:text-base font-bold text-deepSlate-900">
-                {isProcessing ? 'Leyendo archivo...' : 'Haz clic para seleccionar o arrastra tu archivo aquí'}
-              </p>
-              <p className="text-xs text-deepSlate-500 mt-1 max-w-sm">
-                Soporta archivos <strong>.xlsx, .xls o .csv</strong>. El sistema mapea automáticamente columnas como SKU, Producto, Lote, Stock, Costo y Precio.
-              </p>
-              <div className="mt-4 inline-flex items-center space-x-1.5 text-[11px] font-semibold text-coral-600 bg-white px-3 py-1 rounded-full border border-coral-200">
-                <HelpCircle className="w-3.5 h-3.5" />
-                <span>Conversión automática de Precio USD a Córdobas (Tasa: C${exchangeRate})</span>
+
+              <div className="rounded-2xl bg-nacre-50 border border-nacre-200 p-4 text-sm text-deepSlate-700 space-y-2">
+                <p className="font-bold text-deepSlate-900">¿Cómo debe verse tu archivo?</p>
+                <p>
+                  Una fila por producto, con columnas como <strong>Producto</strong>, <strong>Cantidad</strong>
+                  {isOwner && (
+                    <>
+                      , <strong>Costo US$</strong>
+                    </>
+                  )}
+                  , <strong>Precio US$</strong> o <strong>Precio C$</strong>. Si solo pones el precio en dólares, lo
+                  pasamos a córdobas por ti (tasa C$ {exchangeRate}).
+                </p>
+                <p>Si un producto ya existe, se actualiza en vez de repetirse.</p>
+                <button
+                  type="button"
+                  onClick={downloadTemplate}
+                  className="min-h-[44px] inline-flex items-center gap-2 text-coral-700 font-bold hover:underline"
+                >
+                  <Download className="w-4 h-4" /> Bajar un archivo de ejemplo
+                </button>
               </div>
             </div>
-          ) : (
-            <div className="space-y-4">
-              
-              {/* File Info Bar */}
-              <div className="bg-nacre-100/70 border border-nacre-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div className="flex items-center space-x-3">
-                  <FileSpreadsheet className="w-6 h-6 text-coral-500 shrink-0" />
-                  <div>
-                    <p className="text-xs font-bold text-deepSlate-900 truncate max-w-xs sm:max-w-md">
-                      {file.name}
-                    </p>
-                    <p className="text-[11px] text-deepSlate-500">
-                      {(file.size / 1024).toFixed(1)} KB • {stats.total} filas leídas
-                    </p>
-                  </div>
-                </div>
+          )}
 
-                <div className="flex items-center space-x-2">
-                  <span className="inline-flex items-center space-x-1 text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>{stats.valid} válidos</span>
-                  </span>
-                  {stats.invalid > 0 && (
-                    <span className="inline-flex items-center space-x-1 text-xs font-bold px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200">
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                      <span>{stats.invalid} con alerta</span>
-                    </span>
-                  )}
-                  <button
-                    onClick={() => {
-                      setFile(null);
-                      setParsedRows([]);
-                    }}
-                    className="text-xs font-semibold text-coral-600 hover:text-coral-700 px-2 py-1"
-                  >
-                    Cambiar archivo
-                  </button>
+          {/* PASO 2 */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-sm text-deepSlate-600 truncate">
+                  <strong className="text-deepSlate-900">{file?.name}</strong> · {parsedRows.length} filas
+                </p>
+                <button
+                  onClick={reset}
+                  className="min-h-[44px] px-3 text-sm font-bold text-coral-700 hover:underline"
+                >
+                  Elegir otro archivo
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-3 text-center">
+                  <p className="text-2xl font-extrabold text-emerald-700">{newCount}</p>
+                  <p className="text-sm text-emerald-800">Productos nuevos</p>
+                </div>
+                <div className="rounded-2xl bg-coral-50 border border-coral-200 p-3 text-center">
+                  <p className="text-2xl font-extrabold text-coral-700">{updCount}</p>
+                  <p className="text-sm text-coral-800">Se actualizan</p>
+                </div>
+                <div
+                  className={`rounded-2xl border p-3 text-center ${
+                    invalid.length > 0 ? 'bg-rose-50 border-rose-200' : 'bg-nacre-50 border-nacre-200'
+                  }`}
+                >
+                  <p className={`text-2xl font-extrabold ${invalid.length > 0 ? 'text-rose-700' : 'text-deepSlate-400'}`}>
+                    {invalid.length}
+                  </p>
+                  <p className={`text-sm ${invalid.length > 0 ? 'text-rose-800' : 'text-deepSlate-500'}`}>
+                    Con problema
+                  </p>
                 </div>
               </div>
 
-              {/* Preview Table */}
-              <div className="border border-nacre-200 rounded-2xl overflow-hidden bg-white">
-                <div className="px-4 py-3 bg-nacre-50 border-b border-nacre-200 flex items-center justify-between">
-                  <div className="flex items-center space-x-2 text-xs font-bold text-deepSlate-700">
-                    <Table className="w-4 h-4 text-coral-500" />
-                    <span>Previsualización de Datos ({parsedRows.length} registros)</span>
-                  </div>
-                  <span className="text-[11px] text-deepSlate-500">
-                    {role === 'seller' ? 'Columnas de costo ocultas para vendedores' : 'Muestra costos y precios'}
+              {invalid.length > 0 && (
+                <div className="text-sm text-rose-800 bg-rose-50 border border-rose-200 rounded-xl p-3 flex items-start justify-between gap-3">
+                  <span>
+                    Las filas con problema <strong>no se van a subir</strong>. Puedes corregirlas en tu archivo y subirlo
+                    de nuevo, o continuar sin ellas.
                   </span>
+                  <button
+                    onClick={() => setShowOnlyProblems((v) => !v)}
+                    className="min-h-[44px] px-2 font-bold underline shrink-0"
+                  >
+                    {showOnlyProblems ? 'Ver todas' : 'Ver solo problemas'}
+                  </button>
                 </div>
+              )}
 
-                <div className="max-h-72 overflow-y-auto overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="bg-nacre-50/60 border-b border-nacre-200 text-deepSlate-500 uppercase tracking-wider font-semibold">
-                        <th className="py-2.5 px-3">Estado</th>
-                        <th className="py-2.5 px-3">SKU</th>
+              <div className="border border-nacre-200 rounded-2xl overflow-hidden">
+                <div className="max-h-72 overflow-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="sticky top-0 bg-nacre-50 border-b border-nacre-200 text-deepSlate-600">
+                      <tr>
+                        <th className="py-2.5 px-3">Qué pasará</th>
                         <th className="py-2.5 px-3">Producto</th>
-                        <th className="py-2.5 px-3">Lote / Categoría</th>
-                        <th className="py-2.5 px-3 text-center">Stock</th>
-                        {role !== 'seller' && <th className="py-2.5 px-3 text-right">Costo ($)</th>}
-                        <th className="py-2.5 px-3 text-right">Precio ($)</th>
-                        <th className="py-2.5 px-3 text-right">Precio (C$)</th>
+                        <th className="py-2.5 px-3 text-center">Cantidad</th>
+                        {isOwner && <th className="py-2.5 px-3 text-right">Costo</th>}
+                        <th className="py-2.5 px-3 text-right">Precio</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-nacre-100">
-                      {parsedRows.slice(0, 100).map((r, i) => (
-                        <tr
-                          key={i}
-                          className={r.isValid ? 'hover:bg-nacre-50/50' : 'bg-rose-50/40 text-rose-900'}
-                        >
-                          <td className="py-2.5 px-3">
+                      {visibleRows.map((r) => (
+                        <tr key={r.line} className={r.isValid ? '' : 'bg-rose-50/50'}>
+                          <td className="py-2.5 px-3 whitespace-nowrap">
                             {r.isValid ? (
-                              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-xs font-bold border ${
+                                  r.isUpdate
+                                    ? 'bg-coral-50 text-coral-700 border-coral-200'
+                                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                }`}
+                              >
+                                {r.isUpdate ? 'Se actualiza' : 'Nuevo'}
+                              </span>
                             ) : (
-                              <div className="flex items-center space-x-1 text-rose-600 font-bold text-[11px]" title={r.error}>
-                                <AlertTriangle className="w-4 h-4 shrink-0" />
-                                <span className="truncate max-w-[80px]">{r.error}</span>
-                              </div>
+                              <span className="text-rose-700 font-bold text-xs">Fila {r.line}</span>
                             )}
                           </td>
-                          <td className="py-2.5 px-3 font-mono font-bold text-deepSlate-900">{r.sku}</td>
-                          <td className="py-2.5 px-3 font-medium text-deepSlate-800 truncate max-w-xs">{r.name}</td>
-                          <td className="py-2.5 px-3 text-deepSlate-500">
-                            <span className="px-2 py-0.5 rounded bg-nacre-100 text-[10px] font-semibold text-deepSlate-700">
-                              {r.batchName}
-                            </span>
+                          <td className="py-2.5 px-3 font-semibold text-deepSlate-900 max-w-[220px]">
+                            <span className="block truncate">{r.name}</span>
+                            {!r.isValid && <span className="block text-xs text-rose-700 font-medium">{r.error}</span>}
                           </td>
-                          <td className="py-2.5 px-3 text-center font-mono font-semibold">{r.stock}</td>
-                          {role !== 'seller' && (
-                            <td className="py-2.5 px-3 text-right font-mono text-deepSlate-500">
-                              ${r.costUsd.toFixed(2)}
-                            </td>
+                          <td className="py-2.5 px-3 text-center">{r.stock}</td>
+                          {isOwner && (
+                            <td className="py-2.5 px-3 text-right text-deepSlate-500">{fmtUsd(r.costUsd)}</td>
                           )}
-                          <td className="py-2.5 px-3 text-right font-mono font-bold text-deepSlate-900">
-                            ${r.priceUsd.toFixed(2)}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-mono font-bold text-coral-600">
-                            C${r.priceNio.toFixed(2)}
-                          </td>
+                          <td className="py-2.5 px-3 text-right font-bold text-coral-600">{fmtNio(r.priceNio)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-
-                {parsedRows.length > 100 && (
-                  <div className="p-2 text-center text-xs text-deepSlate-400 bg-nacre-50 border-t border-nacre-200">
-                    Mostrando las primeras 100 filas de {parsedRows.length} en la vista previa.
+                {parsedRows.length > 100 && !showOnlyProblems && (
+                  <div className="p-2 text-center text-sm text-deepSlate-500 bg-nacre-50 border-t border-nacre-200">
+                    Te mostramos las primeras 100 filas. Se subirán todas las correctas.
                   </div>
                 )}
               </div>
-
             </div>
           )}
 
+          {/* PASO 3 */}
+          {step === 3 && (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 className="w-9 h-9" />
+              </div>
+              <h4 className="text-xl font-extrabold text-deepSlate-900">¡Listo!</h4>
+              <p className="text-base text-deepSlate-600 mt-1">
+                Subimos {importedCount} {importedCount === 1 ? 'producto' : 'productos'} a tu lista.
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-nacre-200 bg-nacre-50/80 flex items-center justify-between">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-deepSlate-600 hover:bg-nacre-200/50 transition-colors"
-          >
-            Cancelar
-          </button>
+        {/* Pie */}
+        <div className="px-6 py-4 border-t border-nacre-200 bg-nacre-50/80 flex items-center justify-between gap-3">
+          {step === 2 ? (
+            <button
+              onClick={reset}
+              className="min-h-[48px] px-4 rounded-xl text-sm font-bold text-deepSlate-700 hover:bg-nacre-200/60 inline-flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" /> Atrás
+            </button>
+          ) : step === 1 ? (
+            <button onClick={close} className="min-h-[48px] px-4 rounded-xl text-sm font-bold text-deepSlate-700 hover:bg-nacre-200/60">
+              Cancelar
+            </button>
+          ) : (
+            <span />
+          )}
 
-          {file && (
+          {step === 2 && (
             <button
               onClick={handleConfirmImport}
-              disabled={isSaving || stats.valid === 0}
-              className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-coral-500 hover:bg-coral-600 shadow-md shadow-coral-500/25 active:scale-95 transition-all flex items-center space-x-2 disabled:opacity-50"
+              disabled={isSaving || valid.length === 0}
+              className="min-h-[48px] px-6 rounded-xl text-sm font-bold text-white bg-coral-500 hover:bg-coral-600 disabled:opacity-50 inline-flex items-center gap-2"
             >
               {isSaving ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Importando al catálogo...</span>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Subiendo...
                 </>
               ) : (
                 <>
-                  <span>Confirmar e Importar {stats.valid} Productos</span>
-                  <ArrowRight className="w-4 h-4" />
+                  Subir {valid.length} {valid.length === 1 ? 'producto' : 'productos'} <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           )}
+          {step === 3 && (
+            <button
+              onClick={close}
+              className="min-h-[48px] px-6 rounded-xl text-sm font-bold text-white bg-coral-500 hover:bg-coral-600"
+            >
+              Ver mis productos
+            </button>
+          )}
         </div>
-
       </div>
     </div>
   );

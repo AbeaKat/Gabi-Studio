@@ -2,581 +2,350 @@ import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   Sparkles,
+  Home,
+  ShoppingBag,
   Package,
-  CalendarCheck,
-  TrendingUp,
+  Wallet,
   Layers,
   History,
   Users,
   LogOut,
-  Building2,
   Lock,
-  Edit2,
-  Check,
-  X,
   Menu,
-  Eye,
-  EyeOff,
-  UserCheck
+  X,
+  Check,
+  Edit2,
+  Palette,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { PlanTier, UserRole } from '../../types';
+import { OFFICIAL_WHATSAPP_NUMBER } from '../../data/realInventoryData';
+import { NAV_ITEMS, NavItem, PLAN_INFO, UPGRADE_COPY } from '../../lib/navigation';
+import { OwnerOnboardingModal } from '../onboarding/OwnerOnboardingModal';
+
+const ICONS = {
+  home: Home,
+  sales: ShoppingBag,
+  products: Package,
+  money: Wallet,
+  costs: Layers,
+  history: History,
+  team: Users,
+};
 
 export const AppLayout: React.FC = () => {
   const {
+    profile,
     tenant,
     planTier,
     role,
     signOut,
     updateExchangeRate,
-    setSimulatedRole,
-    setSimulatedTier,
+    openOnboardingModal,
   } = useAuth();
   const navigate = useNavigate();
 
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [editingRate, setEditingRate] = useState(false);
-  const [rateInput, setRateInput] = useState(
-    tenant?.exchange_rate_nio ? String(tenant.exchange_rate_nio) : '36.62'
-  );
-  const [rateSaving, setRateSaving] = useState(false);
-  const [lockedModalTier, setLockedModalTier] = useState<PlanTier | null>(null);
+  const [rateInput, setRateInput] = useState(String(tenant?.exchange_rate_nio ?? 36.62));
+  const [upsellTier, setUpsellTier] = useState<2 | 3 | null>(null);
 
-  const tierLabels: Record<number, { name: string; badgeColor: string }> = {
-    1: { name: 'Nivel 1: Esencial', badgeColor: 'bg-nacre-200 text-deepSlate-700' },
-    2: { name: 'Nivel 2: Crecimiento', badgeColor: 'bg-coral-50 text-coral-600 border border-coral-200' },
-    3: { name: 'Nivel 3: ERP Completo', badgeColor: 'bg-indigo-50 text-indigo-700 border border-indigo-200' },
-  };
+  const isOwner = role === 'global_owner';
+  const businessName = tenant?.name || 'Mi Tienda';
+  const items = NAV_ITEMS.filter((i) => !(i.ownerOnly && !isOwner));
 
-  const handleSaveRate = async () => {
-    const parsed = parseFloat(rateInput);
-    if (!isNaN(parsed) && parsed > 0) {
-      setRateSaving(true);
-      await updateExchangeRate(parsed);
-      setRateSaving(false);
+  const saveRate = async () => {
+    const n = parseFloat(rateInput);
+    if (!isNaN(n) && n > 0) {
+      await updateExchangeRate(n);
       setEditingRate(false);
     }
   };
 
-  const handleToggleSimulatedRole = () => {
-    const nextRole: UserRole = role === 'global_owner' ? 'seller' : 'global_owner';
-    setSimulatedRole(nextRole);
+  const logout = () => {
+    signOut();
+    navigate('/login');
   };
 
-  const handleLockedFeatureClick = (requiredTier: PlanTier) => {
-    setLockedModalTier(requiredTier);
-  };
-
-  const handleWhatsAppUpgrade = () => {
-    const text = encodeURIComponent(
-      `Hola Gabi Studio! Mi empresa ${tenant?.name || 'Mi Empresa Demo'} desea consultar la actualización al Nivel ${lockedModalTier || 2}.`
+  const renderItem = (item: NavItem, onClick?: () => void) => {
+    const Icon = ICONS[item.icon];
+    if (planTier < item.minTier) {
+      return (
+        <button
+          key={item.to}
+          type="button"
+          onClick={() => setUpsellTier(item.minTier as 2 | 3)}
+          className="w-full flex items-center justify-between px-3 py-3 rounded-xl text-sm text-deepSlate-400 hover:bg-nacre-200/50"
+        >
+          <span className="flex items-center gap-3">
+            <Icon className="w-5 h-5" />
+            {item.label}
+          </span>
+          <span className="flex items-center gap-1 text-[10px] bg-nacre-200 text-deepSlate-600 px-1.5 py-0.5 rounded font-bold">
+            <Lock className="w-3 h-3" />
+            {PLAN_INFO[item.minTier].short}
+          </span>
+        </button>
+      );
+    }
+    return (
+      <NavLink
+        key={item.to}
+        to={item.to}
+        onClick={onClick}
+        title={item.hint}
+        className={({ isActive }) =>
+          `flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold transition-all ${
+            isActive
+              ? 'bg-coral-500 text-white shadow-sm'
+              : 'text-deepSlate-700 hover:bg-white/80'
+          }`
+        }
+      >
+        <Icon className="w-5 h-5" />
+        {item.label}
+      </NavLink>
     );
-    window.open(`https://wa.me/50588888888?text=${text}`, '_blank');
-    setLockedModalTier(null);
   };
+
+  const upgradeViaWhatsApp = () => {
+    const text = encodeURIComponent(
+      `Hola Gabi Studio! Mi tienda ${businessName} quiere actualizar al plan ${
+        PLAN_INFO[upsellTier || 2].name
+      }.`
+    );
+    window.open(`https://wa.me/${OFFICIAL_WHATSAPP_NUMBER}?text=${text}`, '_blank');
+    setUpsellTier(null);
+  };
+
+  const nav = (onClick?: () => void) => (
+    <nav className="space-y-1">{items.map((i) => renderItem(i, onClick))}</nav>
+  );
 
   return (
-    <div className="min-h-screen bg-nacre-50 flex flex-col md:flex-row text-deepSlate-900 font-sans selection:bg-coral-100 selection:text-coral-900">
-      
-      {/* Sidebar for Desktop */}
-      <aside className="hidden md:flex flex-col w-64 bg-nacre-100 border-r border-nacre-200 shrink-0 select-none">
-        
-        {/* Brand Header */}
-        <div className="h-16 px-6 flex items-center justify-between border-b border-nacre-200 bg-white/50 backdrop-blur-sm">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-coral-500 to-coral-400 flex items-center justify-center text-white shadow-sm shadow-coral-500/20">
+    <div className="min-h-screen bg-nacre-50 flex flex-col md:flex-row text-deepSlate-900 font-sans">
+      {/* Asistente de Primer Inicio de Sesión y Personalización de Tienda (Solo Dueño) */}
+      <OwnerOnboardingModal />
+
+      {/* Sidebar escritorio */}
+      <aside className="hidden md:flex flex-col w-64 bg-nacre-100 border-r border-nacre-200 shrink-0">
+        <div className="h-16 px-5 flex items-center justify-between border-b border-nacre-200 bg-white/50">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-coral-500 flex items-center justify-center text-white shrink-0">
               <Sparkles className="w-4 h-4" />
             </div>
-            <div className="flex flex-col">
-              <span className="font-extrabold text-sm tracking-tight text-deepSlate-900">
-                GABI STUDIO
+            <span className="font-extrabold text-sm truncate">{businessName}</span>
+          </div>
+          {isOwner && (
+            <button
+              type="button"
+              onClick={openOnboardingModal}
+              title="Personalizar tienda, colores y foto"
+              className="p-1.5 rounded-lg text-deepSlate-500 hover:text-coral-600 hover:bg-coral-50 transition-colors"
+            >
+              <Palette className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Tarjeta del Usuario Conectado */}
+        <div className="p-4 border-b border-nacre-200/80 flex items-center gap-3">
+          {profile?.avatar_url ? (
+            <img
+              src={profile.avatar_url}
+              alt={profile.full_name}
+              className="w-11 h-11 rounded-2xl object-cover border-2 border-coral-500 shrink-0 bg-white"
+            />
+          ) : (
+            <div className="w-11 h-11 rounded-2xl bg-coral-500 text-white font-extrabold text-base flex items-center justify-center shrink-0">
+              {(profile?.full_name || businessName || 'U').charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-extrabold text-deepSlate-900 truncate">
+              {profile?.full_name || 'Usuario'}
+            </p>
+            <p className="text-xs font-mono text-deepSlate-500 truncate">
+              @{profile?.username || 'usuario'}
+            </p>
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              <span
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${PLAN_INFO[planTier].badgeColor}`}
+              >
+                Plan {PLAN_INFO[planTier].name}
               </span>
-              <span className="text-[9px] font-semibold text-deepSlate-500 uppercase -mt-0.5 tracking-wider">
-                Control & Finanzas
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-deepSlate-600 border border-nacre-200">
+                {isOwner ? 'Dueño' : 'Empleado'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Tenant info chip */}
-        <div className="p-4 border-b border-nacre-200/80 bg-white/30">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-lg bg-coral-50 border border-coral-200 flex items-center justify-center text-coral-600 shrink-0 font-bold text-xs">
-              {(tenant?.name || 'Mi Empresa Demo').charAt(0).toUpperCase()}
-            </div>
-            <div className="overflow-hidden">
-              <p className="text-xs font-bold text-deepSlate-900 truncate" title={tenant?.name || 'Mi Empresa Demo'}>
-                {tenant?.name || 'Mi Empresa Demo'}
-              </p>
-              <div className="flex items-center space-x-1.5 mt-0.5">
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    tierLabels[planTier]?.badgeColor || 'bg-coral-50 text-coral-600'
-                  }`}
-                >
-                  Nivel {planTier}
-                </span>
-                <span className="text-[10px] text-deepSlate-400 capitalize">
-                  {role === 'seller' ? 'Vendedor' : 'Dueño'}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <div className="flex-1 p-3 overflow-y-auto">{nav()}</div>
 
-        {/* Navigation Items */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          
-          <div className="px-3 pb-2 text-[10px] font-extrabold uppercase tracking-wider text-deepSlate-400">
-            Operación Diaria (Nivel 1+)
-          </div>
-
-          <NavLink
-            to="/app/inventory"
-            className={({ isActive }) =>
-              `flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                isActive
-                  ? 'bg-coral-500 text-white shadow-sm shadow-coral-500/25'
-                  : 'text-deepSlate-700 hover:bg-white/80 hover:text-deepSlate-900'
-              }`
-            }
-          >
-            <Package className="w-4 h-4" />
-            <span>Catálogo e Inventario</span>
-          </NavLink>
-
-          <NavLink
-            to="/app/closing"
-            className={({ isActive }) =>
-              `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                isActive
-                  ? 'bg-coral-500 text-white shadow-sm'
-                  : 'text-deepSlate-700 hover:bg-white/80 hover:text-deepSlate-900'
-              }`
-            }
-          >
-            <div className="flex items-center space-x-3">
-              <CalendarCheck className="w-4 h-4" />
-              <span>Cierre & Ventas 1a1</span>
-            </div>
-          </NavLink>
-
-          <NavLink
-            to="/app/finance"
-            className={({ isActive }) =>
-              `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                isActive
-                  ? 'bg-coral-500 text-white shadow-sm'
-                  : 'text-deepSlate-700 hover:bg-white/80 hover:text-deepSlate-900'
-              }`
-            }
-          >
-            <div className="flex items-center space-x-3">
-              <TrendingUp className="w-4 h-4" />
-              <span>Finanzas, Gastos & P&L</span>
-            </div>
-            {role === 'seller' && <Lock className="w-3.5 h-3.5 opacity-60" />}
-          </NavLink>
-
-          {/* Tier 2+ Advanced Modules */}
-          <div className="pt-4 px-3 pb-2 text-[10px] font-extrabold uppercase tracking-wider text-deepSlate-400">
-            Crecimiento & ERP (N2 / N3)
-          </div>
-
-          {planTier >= 2 ? (
-            <NavLink
-              to="/app/batches"
-              className={({ isActive }) =>
-                `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                  isActive
-                    ? 'bg-coral-500 text-white shadow-sm'
-                    : 'text-deepSlate-700 hover:bg-white/80 hover:text-deepSlate-900'
-                }`
-              }
-            >
-              <div className="flex items-center space-x-3">
-                <Layers className="w-4 h-4" />
-                <span>Calculadora de Lotes</span>
-              </div>
-              <span className="text-[9px] px-1.5 py-0.5 rounded bg-coral-100/80 text-coral-800 font-mono">
-                N2
-              </span>
-            </NavLink>
-          ) : (
+        <div className="p-3 border-t border-nacre-200 space-y-2">
+          {isOwner && (
             <button
               type="button"
-              onClick={() => handleLockedFeatureClick(2)}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium text-deepSlate-400 hover:bg-nacre-200/50 transition-colors"
+              onClick={openOnboardingModal}
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold text-coral-600 bg-coral-50 hover:bg-coral-100 border border-coral-200 rounded-xl transition-colors"
             >
-              <div className="flex items-center space-x-3">
-                <Layers className="w-4 h-4 text-deepSlate-400" />
-                <span>Calculadora de Lotes</span>
-              </div>
-              <span className="flex items-center space-x-1 text-[10px] bg-nacre-200 text-deepSlate-600 px-1.5 py-0.5 rounded font-bold">
-                <Lock className="w-2.5 h-2.5" />
-                <span>Nivel 2</span>
-              </span>
+              <Palette className="w-3.5 h-3.5" />
+              <span>Estilizar tienda y tema</span>
             </button>
           )}
-
-          {planTier >= 3 ? (
-            <NavLink
-              to="/app/audit"
-              className={({ isActive }) =>
-                `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                  isActive
-                    ? 'bg-coral-500 text-white shadow-sm'
-                    : 'text-deepSlate-700 hover:bg-white/80 hover:text-deepSlate-900'
-                }`
-              }
-            >
-              <div className="flex items-center space-x-3">
-                <History className="w-4 h-4" />
-                <span>Kardex & Auditoría</span>
-              </div>
-              <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 font-mono">
-                N3
-              </span>
-            </NavLink>
-          ) : (
-            <button
-              type="button"
-              onClick={() => handleLockedFeatureClick(3)}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium text-deepSlate-400 hover:bg-nacre-200/50 transition-colors"
-            >
-              <div className="flex items-center space-x-3">
-                <History className="w-4 h-4 text-deepSlate-400" />
-                <span>Kardex & Auditoría</span>
-              </div>
-              <span className="flex items-center space-x-1 text-[10px] bg-nacre-200 text-deepSlate-600 px-1.5 py-0.5 rounded font-bold">
-                <Lock className="w-2.5 h-2.5" />
-                <span>Nivel 3</span>
-              </span>
-            </button>
-          )}
-
-          <NavLink
-            to="/app/team"
-            className={({ isActive }) =>
-              `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                isActive
-                  ? 'bg-coral-500 text-white shadow-sm'
-                  : 'text-deepSlate-700 hover:bg-white/80 hover:text-deepSlate-900'
-              }`
-            }
-          >
-            <div className="flex items-center space-x-3">
-              <Users className="w-4 h-4" />
-              <span>Perfiles & Niveles</span>
-            </div>
-          </NavLink>
-
-        </nav>
-
-        {/* Interactive Level & Role Simulator in sidebar bottom */}
-        <div className="p-3.5 border-t border-nacre-200 bg-white/40 space-y-2.5">
-          
-          {/* Tier Switcher */}
-          <div className="bg-nacre-50 border border-nacre-200 rounded-xl p-2 space-y-1.5">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-deepSlate-500 block px-1">
-              Probar Nivel del Plan:
-            </span>
-            <div className="grid grid-cols-3 gap-1">
-              {([1, 2, 3] as PlanTier[]).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setSimulatedTier(t)}
-                  className={`py-1 rounded-lg text-[11px] font-extrabold transition-all ${
-                    planTier === t
-                      ? 'bg-coral-500 text-white shadow-2xs'
-                      : 'bg-white text-deepSlate-600 hover:bg-coral-50'
-                  }`}
-                >
-                  Nivel {t}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Role Switcher */}
-          <div className="bg-nacre-50 border border-nacre-200 rounded-xl p-2.5 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              {role === 'seller' ? (
-                <EyeOff className="w-3.5 h-3.5 text-coral-600" />
-              ) : (
-                <Eye className="w-3.5 h-3.5 text-emerald-600" />
-              )}
-              <span className="text-[11px] font-bold text-deepSlate-700">
-                {role === 'seller' ? 'Modo Vendedor' : 'Modo Dueño'}
-              </span>
-            </div>
-            <button
-              onClick={handleToggleSimulatedRole}
-              title="Alternar entre Dueño y Vendedor para probar la protección de costos"
-              className="text-[10px] font-bold px-2 py-1 rounded bg-white hover:bg-coral-50 text-coral-600 border border-coral-200 shadow-2xs"
-            >
-              Cambiar
-            </button>
-          </div>
-
           <button
-            onClick={() => {
-              signOut();
-              navigate('/');
-            }}
-            className="w-full flex items-center justify-center space-x-2 py-2 text-xs font-bold text-deepSlate-600 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+            onClick={logout}
+            className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-deepSlate-600 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
           >
             <LogOut className="w-3.5 h-3.5" />
-            <span>Cerrar Sesión</span>
+            <span>Cerrar sesión</span>
           </button>
         </div>
-
       </aside>
 
-      {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        
-        {/* Top Header Bar */}
-        <header className="h-16 bg-white border-b border-nacre-200 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 shadow-2xs">
-          
-          {/* Mobile hamburger & title */}
-          <div className="flex items-center space-x-3">
+        <header className="h-16 bg-white border-b border-nacre-200 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30">
+          <div className="flex items-center gap-3 min-w-0">
             <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg text-deepSlate-700 hover:bg-nacre-100"
-              aria-label="Abrir navegación móvil"
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="md:hidden p-2 rounded-lg hover:bg-nacre-100"
+              aria-label="Abrir menú"
             >
               <Menu className="w-5 h-5" />
             </button>
-
-            <div className="flex items-center space-x-2.5">
-              <Building2 className="w-4 h-4 text-coral-500 hidden sm:block" />
-              <span className="font-extrabold text-sm sm:text-base text-deepSlate-900 truncate">
-                {tenant?.name || 'Mi Empresa Demo'}
-              </span>
-              <span
-                className={`hidden sm:inline-flex items-center text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-                  tierLabels[planTier]?.badgeColor || 'bg-coral-50 text-coral-600'
-                }`}
-              >
-                {tierLabels[planTier]?.name || `Tier ${planTier}`}
-              </span>
-            </div>
+            <span className="font-extrabold truncate">{businessName}</span>
+            <span className="hidden sm:inline-flex text-xs font-mono text-deepSlate-400">
+              @{profile?.username}
+            </span>
           </div>
 
-          {/* Right Header Controls (Editable Exchange Rate + User Role) */}
-          <div className="flex items-center space-x-3 sm:space-x-4">
-            
-            {/* Editable Exchange Rate USD -> C$ */}
-            <div className="relative">
-              {editingRate ? (
-                <div className="flex items-center space-x-1.5 bg-white border-2 border-coral-500 rounded-xl px-2 py-1 shadow-md">
-                  <span className="text-xs font-mono font-bold text-deepSlate-500">1 USD = C$</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="1"
-                    value={rateInput}
-                    onChange={(e) => setRateInput(e.target.value)}
-                    className="w-20 px-1 py-0.5 text-xs font-mono font-extrabold text-coral-600 focus:outline-none"
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveRate();
-                      if (e.key === 'Escape') setEditingRate(false);
-                    }}
-                  />
-                  <button
-                    onClick={handleSaveRate}
-                    disabled={rateSaving}
-                    className="p-1 rounded bg-coral-500 hover:bg-coral-600 text-white"
-                    title="Guardar Tasa"
-                  >
-                    <Check className="w-3 h-3" />
-                  </button>
-                  <button
-                    onClick={() => setEditingRate(false)}
-                    className="p-1 rounded text-deepSlate-400 hover:text-deepSlate-700"
-                    title="Cancelar"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => {
-                    if (role === 'global_owner') {
-                      setRateInput(String(tenant?.exchange_rate_nio || 36.62));
-                      setEditingRate(true);
-                    }
+          <div className="flex items-center gap-3">
+            {/* Precio del dólar */}
+            {editingRate && isOwner ? (
+              <div className="flex items-center gap-1.5 bg-white border-2 border-coral-500 rounded-xl px-2 py-1">
+                <span className="text-xs text-deepSlate-500">1 dólar = C$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="1"
+                  autoFocus
+                  value={rateInput}
+                  onChange={(e) => setRateInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') saveRate();
+                    if (e.key === 'Escape') setEditingRate(false);
                   }}
-                  title={
-                    role === 'global_owner'
-                      ? 'Haz clic para editar la tasa de cambio global'
-                      : 'Tasa de cambio global vigente'
-                  }
-                  className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl border text-xs font-mono font-bold transition-all ${
-                    role === 'global_owner'
-                      ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200 cursor-pointer shadow-2xs'
-                      : 'bg-nacre-100 text-deepSlate-700 border-nacre-200 cursor-default'
-                  }`}
+                  className="w-20 text-xs font-bold text-coral-600 focus:outline-none"
+                />
+                <button
+                  onClick={saveRate}
+                  className="p-1 rounded bg-coral-500 text-white"
+                  title="Guardar"
                 >
-                  <span className="text-emerald-600 text-[11px] font-sans font-semibold">Tasa C$:</span>
-                  <span className="text-emerald-900 font-extrabold">
-                    {Number(tenant?.exchange_rate_nio || 36.62).toFixed(2)}
-                  </span>
-                  {role === 'global_owner' && (
-                    <Edit2 className="w-3 h-3 text-emerald-600 opacity-60 hover:opacity-100" />
-                  )}
+                  <Check className="w-3 h-3" />
                 </button>
-              )}
-            </div>
-
-            {/* Role indicator badge */}
-            <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setEditingRate(false)}
+                  className="p-1 text-deepSlate-400"
+                  title="Cancelar"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ) : (
               <button
-                onClick={handleToggleSimulatedRole}
-                title="Haz clic para cambiar entre Dueño y Vendedor"
-                className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
-                  role === 'seller'
-                    ? 'bg-nacre-200 text-deepSlate-700 hover:bg-nacre-300'
-                    : 'bg-coral-50 text-coral-700 border border-coral-200 hover:bg-coral-100'
+                onClick={() => {
+                  if (isOwner) {
+                    setRateInput(String(tenant?.exchange_rate_nio ?? 36.62));
+                    setEditingRate(true);
+                  }
+                }}
+                title={
+                  isOwner
+                    ? 'Toca para cambiar el precio del dólar'
+                    : 'Tasa de cambio configurada por el dueño'
+                }
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold ${
+                  isOwner
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                    : 'bg-nacre-50 text-deepSlate-600 border-nacre-200 cursor-default'
                 }`}
               >
-                <UserCheck className="w-3 h-3" />
-                <span className="hidden sm:inline">{role === 'seller' ? 'Vendedor' : 'Dueño'}</span>
+                <span>Dólar hoy:</span>
+                <span className="font-extrabold">
+                  C$ {Number(tenant?.exchange_rate_nio ?? 36.62).toFixed(2)}
+                </span>
+                {isOwner && <Edit2 className="w-3 h-3 opacity-60" />}
               </button>
-            </div>
-
-            {/* Quick logout for mobile */}
+            )}
             <button
-              onClick={() => {
-                signOut();
-                navigate('/');
-              }}
-              className="md:hidden p-2 rounded-lg text-deepSlate-500 hover:text-rose-600 hover:bg-rose-50"
+              onClick={logout}
+              className="md:hidden p-2 rounded-lg text-deepSlate-500 hover:text-rose-600"
               aria-label="Cerrar sesión"
             >
               <LogOut className="w-4 h-4" />
             </button>
-
           </div>
-
         </header>
 
-        {/* Mobile Navigation Drawer */}
-        {mobileMenuOpen && (
-          <div className="md:hidden bg-nacre-100 border-b border-nacre-200 p-4 space-y-2 shadow-lg">
-            <NavLink
-              to="/app/inventory"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-bold text-deepSlate-800 hover:bg-white"
-            >
-              <Package className="w-4 h-4" />
-              <span>Catálogo e Inventario</span>
-            </NavLink>
-            <NavLink
-              to="/app/closing"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-bold text-deepSlate-800 hover:bg-white"
-            >
-              <CalendarCheck className="w-4 h-4" />
-              <span>Cierre & Ventas 1a1</span>
-            </NavLink>
-            <NavLink
-              to="/app/finance"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-bold text-deepSlate-800 hover:bg-white"
-            >
-              <TrendingUp className="w-4 h-4" />
-              <span>Finanzas, Gastos & P&L</span>
-            </NavLink>
-            <NavLink
-              to="/app/batches"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-bold text-deepSlate-800 hover:bg-white"
-            >
-              <Layers className="w-4 h-4" />
-              <span>Calculadora de Lotes (Nivel 2)</span>
-            </NavLink>
-            <NavLink
-              to="/app/audit"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-bold text-deepSlate-800 hover:bg-white"
-            >
-              <History className="w-4 h-4" />
-              <span>Kardex & Auditoría (Nivel 3)</span>
-            </NavLink>
-            <NavLink
-              to="/app/team"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-bold text-deepSlate-800 hover:bg-white"
-            >
-              <Users className="w-4 h-4" />
-              <span>Perfiles & Niveles</span>
-            </NavLink>
+        {menuOpen && (
+          <div className="md:hidden bg-nacre-100 border-b border-nacre-200 p-3 shadow-lg space-y-2">
+            {nav(() => setMenuOpen(false))}
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  openOnboardingModal();
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-3 text-xs font-bold text-coral-600 bg-coral-50 border border-coral-200 rounded-xl"
+              >
+                <Palette className="w-4 h-4" />
+                <span>Estilizar tienda y tema</span>
+              </button>
+            )}
           </div>
         )}
 
-        {/* Page Viewport Outlet */}
         <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>
-
       </div>
 
-      {/* Upsell / Locked Module Modal */}
-      {lockedModalTier && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-deepSlate-900/40 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 border border-nacre-200 shadow-modal-depth relative animate-modal-enter">
+      {upsellTier && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-deepSlate-900/40 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 relative">
             <button
-              onClick={() => setLockedModalTier(null)}
-              className="absolute top-5 right-5 p-1 rounded-full text-deepSlate-400 hover:text-deepSlate-700 hover:bg-nacre-100"
+              onClick={() => setUpsellTier(null)}
+              className="absolute top-5 right-5 p-1 rounded-full text-deepSlate-400 hover:bg-nacre-100"
+              aria-label="Cerrar"
             >
               <X className="w-5 h-5" />
             </button>
-
-            <div className="w-12 h-12 rounded-2xl bg-coral-50 border border-coral-200 flex items-center justify-center text-coral-500 mb-4">
-              <Lock className="w-6 h-6" />
-            </div>
-
-            <span className="text-xs font-bold uppercase tracking-wider text-coral-600 bg-coral-50 px-2.5 py-1 rounded-full">
-              Función de Nivel {lockedModalTier}
+            <span className="text-xs font-bold text-coral-600 bg-coral-50 px-2.5 py-1 rounded-full">
+              Incluido en el plan {PLAN_INFO[upsellTier].name}
             </span>
-
-            <h3 className="text-xl font-extrabold text-deepSlate-900 mt-3 mb-2">
-              {lockedModalTier === 2
-                ? 'Calculadora de Lotes & Prorrateo de Importaciones'
-                : 'Kardex Auditable & Historial de Cambios'}
-            </h3>
-
-            <p className="text-xs sm:text-sm text-deepSlate-500 leading-relaxed mb-6">
-              {lockedModalTier === 2
-                ? 'El Nivel 2 (Crecimiento) te permite distribuir fletes de envío, tarifas e impuestos a cada pieza individual, además de registrar gastos operativos y bloquear costos a vendedores.'
-                : 'El Nivel 3 (ERP Completo) habilita trazabilidad completa de mermas, consignación, auditoría de precios y Estado de Resultados (P&L) mensual.'}
+            <h3 className="text-xl font-extrabold mt-3 mb-2">{UPGRADE_COPY[upsellTier].title}</h3>
+            <p className="text-sm text-deepSlate-500 leading-relaxed mb-6">
+              {UPGRADE_COPY[upsellTier].body}
             </p>
-
-            <div className="flex flex-col sm:flex-row items-center gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
-                onClick={() => {
-                  setSimulatedTier(lockedModalTier);
-                  navigate(lockedModalTier === 2 ? '/app/batches' : '/app/audit');
-                  setLockedModalTier(null);
-                }}
-                className="w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-bold text-white bg-coral-500 hover:bg-coral-600 shadow-md shadow-coral-500/25 transition-all text-center"
+                onClick={upgradeViaWhatsApp}
+                className="flex-1 py-3 px-4 rounded-xl text-sm font-bold text-white bg-coral-500 hover:bg-coral-600"
               >
-                Activar Nivel {lockedModalTier} para Probar
+                Solicitar este plan por WhatsApp
               </button>
               <button
-                onClick={handleWhatsAppUpgrade}
-                className="w-full sm:w-auto py-3 px-4 rounded-xl text-xs font-bold text-deepSlate-600 bg-nacre-100 hover:bg-nacre-200 transition-colors"
+                onClick={() => setUpsellTier(null)}
+                className="py-3 px-4 rounded-xl text-sm font-bold text-deepSlate-600 bg-nacre-100 hover:bg-nacre-200"
               >
-                WhatsApp
+                Cerrar
               </button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Sparkles, AlertCircle, ArrowRight, Layers, Tag, Calculator } from 'lucide-react';
+import { X, AlertCircle, TrendingUp, TrendingDown, Plus } from 'lucide-react';
 import { Product, Batch, UserRole } from '../../types';
+import { fmtNio, fmtUsd, generateSku, round2 } from './inventoryHelpers';
 
 interface NewProductModalProps {
   isOpen: boolean;
@@ -10,333 +11,245 @@ interface NewProductModalProps {
   exchangeRate: number;
   role: UserRole;
   defaultBatchId?: string;
+  existingNames?: string[];
 }
+
+const inputCls =
+  'w-full min-h-[52px] px-4 text-base rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white text-deepSlate-900';
 
 export const NewProductModal: React.FC<NewProductModalProps> = ({
   isOpen,
   onClose,
   onSave,
-  batches,
   exchangeRate,
   role,
   defaultBatchId,
+  existingNames = [],
 }) => {
-  const [sku, setSku] = useState('');
+  const isOwner = role !== 'seller';
   const [name, setName] = useState('');
-  const [batchId, setBatchId] = useState(defaultBatchId || '');
-  const [stockCurrent, setStockCurrent] = useState('1');
-  const [baseCostUsd, setBaseCostUsd] = useState('0.00');
-  const [priceUsd, setPriceUsd] = useState('0.00');
-  const [priceNio, setPriceNio] = useState('0.00');
-  const [isManualNio, setIsManualNio] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [cost, setCost] = useState('');
+  const [price, setPrice] = useState('');
+  const [stock, setStock] = useState('1');
+  const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setSku('');
       setName('');
-      setBatchId(defaultBatchId || (batches[0]?.id || ''));
-      setStockCurrent('1');
-      setBaseCostUsd('0.00');
-      setPriceUsd('0.00');
-      setPriceNio('0.00');
-      setIsManualNio(false);
-      setErrorMessage(null);
+      setCost('');
+      setPrice('');
+      setStock('1');
+      setError(null);
     }
-  }, [isOpen, defaultBatchId, batches]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handlePriceUsdChange = (val: string) => {
-    setPriceUsd(val);
-    const num = parseFloat(val);
-    if (!isNaN(num) && !isManualNio) {
-      const calcNio = Math.round(num * exchangeRate * 100) / 100;
-      setPriceNio(calcNio.toFixed(2));
-    }
-  };
-
-  const handlePriceNioChange = (val: string) => {
-    setPriceNio(val);
-    setIsManualNio(true);
-  };
-
-  const costNum = parseFloat(baseCostUsd) || 0;
-  const priceUsdNum = parseFloat(priceUsd) || 0;
-  const marginPercent = priceUsdNum > 0 ? ((priceUsdNum - costNum) / priceUsdNum) * 100 : 0;
+  const costNum = parseFloat(cost) || 0;
+  const priceNum = parseFloat(price) || 0;
+  const profit = priceNum - costNum;
+  const pct = priceNum > 0 ? (profit / priceNum) * 100 : 0;
+  const showProfit = isOwner && priceNum > 0 && cost.trim() !== '';
+  const duplicate =
+    name.trim() !== '' &&
+    existingNames.some((n) => n.trim().toLowerCase() === name.trim().toLowerCase());
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMessage(null);
+    setError(null);
 
-    if (!sku.trim()) {
-      setErrorMessage('El código SKU es obligatorio.');
-      return;
-    }
-
-    const stock = parseInt(stockCurrent, 10);
-    if (isNaN(stock) || stock < 0) {
-      setErrorMessage('El stock debe ser un número entero mayor o igual a 0.');
-      return;
-    }
+    if (!name.trim()) return setError('Escribe el nombre del producto, por ejemplo "Camisa azul".');
+    if (isOwner && cost.trim() !== '' && (isNaN(costNum) || costNum < 0))
+      return setError('Lo que pagaste debe ser un número, por ejemplo 150.');
+    if (!price.trim() || isNaN(priceNum) || priceNum <= 0)
+      return setError('Escribe el precio al que vas a vender (debe ser mayor que cero).');
+    const stockNum = Number(stock);
+    if (stock.trim() === '' || isNaN(stockNum) || stockNum < 0 || !Number.isInteger(stockNum))
+      return setError('Escribe cuántas piezas tienes, con números enteros (puede ser 0).');
 
     setIsSaving(true);
     try {
+      const costUsd = round2(costNum / exchangeRate);
       await onSave({
-        sku: sku.trim().toUpperCase(),
-        name: name.trim() || `Producto ${sku.trim().toUpperCase()}`,
-        batch_id: batchId || null,
-        stock_current: stock,
-        base_cost_usd: costNum,
-        landed_cost_usd: costNum,
-        price_usd: priceUsdNum,
-        price_nio: parseFloat(priceNio) || Math.round(priceUsdNum * exchangeRate * 100) / 100,
+        sku: generateSku(),
+        name: name.trim(),
+        batch_id: defaultBatchId || null,
+        stock_current: stockNum,
+        base_cost_usd: costUsd,
+        landed_cost_usd: costUsd,
+        price_usd: round2(priceNum / exchangeRate),
+        price_nio: round2(priceNum),
       });
       onClose();
     } catch (err: any) {
-      console.error('Error al crear producto:', err);
-      setErrorMessage(err?.message || 'Error al guardar el producto. Verifica que el SKU no esté duplicado.');
+      setError(err?.message || 'No pudimos guardar el producto. Intenta de nuevo.');
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-deepSlate-900/40 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-3xl max-w-lg w-full border border-nacre-200 shadow-modal-depth overflow-hidden flex flex-col animate-modal-enter">
-        
-        {/* Header */}
-        <div className="px-6 py-5 border-b border-nacre-200 flex items-center justify-between bg-nacre-50/70">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-xl bg-coral-500 text-white flex items-center justify-center shadow-sm shadow-coral-500/25">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="font-extrabold text-base text-deepSlate-900">
-                Nuevo Producto / Pieza
-              </h3>
-              <p className="text-xs text-deepSlate-500">
-                Ingresa los datos para registrarlo en el inventario maestro
-              </p>
-            </div>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-deepSlate-900/40 backdrop-blur-sm">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full border border-nacre-200 shadow-xl overflow-y-auto max-h-[95vh]">
+        <div className="px-6 py-5 border-b border-nacre-200 flex items-center justify-between">
+          <div>
+            <h3 className="font-extrabold text-xl text-deepSlate-900">Agregar producto</h3>
+            <p className="text-sm text-deepSlate-500">Solo 4 datos y listo.</p>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl text-deepSlate-400 hover:text-deepSlate-700 hover:bg-nacre-100"
+            aria-label="Cerrar"
+            className="min-w-[44px] min-h-[44px] rounded-xl text-deepSlate-400 hover:bg-nacre-100 flex items-center justify-center"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          
-          {errorMessage && (
-            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start space-x-2">
-              <AlertCircle className="w-4 h-4 text-rose-600 mt-0.5 shrink-0" />
-              <span>{errorMessage}</span>
+        <form onSubmit={handleSubmit} className="p-6 space-y-5" noValidate>
+          {error && (
+            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            
-            {/* SKU */}
-            <div>
-              <label className="block text-xs font-bold text-deepSlate-700 uppercase tracking-wider mb-1.5">
-                Código SKU *
-              </label>
-              <div className="relative">
-                <Tag className="w-4 h-4 text-deepSlate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  required
-                  placeholder="Ej. REP-501"
-                  value={sku}
-                  onChange={(e) => setSku(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-xs font-mono font-bold rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white text-deepSlate-900 uppercase"
-                />
-              </div>
-            </div>
-
-            {/* Batch / Category */}
-            <div>
-              <label className="block text-xs font-bold text-deepSlate-700 uppercase tracking-wider mb-1.5">
-                Categoría / Lote
-              </label>
-              <div className="relative">
-                <Layers className="w-4 h-4 text-deepSlate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <select
-                  value={batchId}
-                  onChange={(e) => setBatchId(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white text-deepSlate-900 font-medium"
-                >
-                  <option value="">Sin Categoría Asignada</option>
-                  {batches.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Product Name */}
           <div>
-            <label className="block text-xs font-bold text-deepSlate-700 uppercase tracking-wider mb-1.5">
-              Nombre / Descripción del Producto
+            <label className="block text-sm font-bold text-deepSlate-800 mb-1.5" htmlFor="np-name">
+              ¿Cómo se llama el producto?
             </label>
             <input
+              id="np-name"
+              autoFocus
               type="text"
-              placeholder="Ej. Filtro de Aceite Sintético de Alto Rendimiento"
+              placeholder="Ej. Camisa azul talla M"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white text-deepSlate-900"
+              className={inputCls}
+            />
+            {duplicate && (
+              <p className="text-sm text-amber-700 mt-1.5">
+                Ya tienes un producto con ese nombre. Si es otro, puedes agregarlo igual.
+              </p>
+            )}
+          </div>
+
+          <div className={`grid gap-4 ${isOwner ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            {isOwner && (
+              <div>
+                <label className="block text-sm font-bold text-deepSlate-800 mb-1.5" htmlFor="np-cost">
+                  ¿Cuánto pagaste por cada una?
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-deepSlate-500 font-bold">C$</span>
+                  <input
+                    id="np-cost"
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="0.01"
+                    placeholder="0"
+                    value={cost}
+                    onChange={(e) => setCost(e.target.value)}
+                    className={`${inputCls} pl-11`}
+                  />
+                </div>
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-bold text-deepSlate-800 mb-1.5" htmlFor="np-price">
+                ¿A cuánto la vendes?
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-coral-600 font-bold">C$</span>
+                <input
+                  id="np-price"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  placeholder="0"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  className={`${inputCls} pl-11 font-bold text-coral-700`}
+                />
+              </div>
+              {priceNum > 0 && (
+                <p className="text-xs text-deepSlate-400 mt-1">≈ {fmtUsd(priceNum / exchangeRate)}</p>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-deepSlate-800 mb-1.5" htmlFor="np-stock">
+              ¿Cuántas piezas tienes?
+            </label>
+            <input
+              id="np-stock"
+              type="number"
+              inputMode="numeric"
+              min="0"
+              step="1"
+              value={stock}
+              onChange={(e) => setStock(e.target.value)}
+              className={inputCls}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            
-            {/* Stock */}
-            <div>
-              <label className="block text-xs font-bold text-deepSlate-700 uppercase tracking-wider mb-1.5">
-                Stock Inicial
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                required
-                value={stockCurrent}
-                onChange={(e) => setStockCurrent(e.target.value)}
-                className="w-full px-3 py-2 text-xs font-mono font-bold rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white text-deepSlate-900"
-              />
-            </div>
-
-            {/* Cost USD (Hidden if seller) */}
-            {role !== 'seller' ? (
-              <div>
-                <label className="block text-xs font-bold text-deepSlate-700 uppercase tracking-wider mb-1.5">
-                  Costo Base ($ USD)
-                </label>
-                <div className="relative">
-                  <span className="text-deepSlate-400 text-xs absolute left-3 top-1/2 -translate-y-1/2 font-mono">$</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={baseCostUsd}
-                    onChange={(e) => setBaseCostUsd(e.target.value)}
-                    className="w-full pl-7 pr-3 py-2 text-xs font-mono font-bold rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white text-deepSlate-900"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center text-xs text-deepSlate-400 bg-nacre-50 p-3 rounded-xl border border-nacre-200">
-                <span>Costos restringidos para vendedores.</span>
-              </div>
-            )}
-
-          </div>
-
-          {/* Pricing Bimoneda Grid */}
-          <div className="p-4 bg-coral-50/40 rounded-2xl border border-coral-200 space-y-3">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-extrabold text-coral-800 uppercase tracking-wider flex items-center space-x-1.5">
-                <Calculator className="w-3.5 h-3.5 text-coral-600" />
-                <span>Precios de Venta (Bimoneda)</span>
-              </span>
-              <span className="text-[11px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                Tasa: C${exchangeRate.toFixed(2)}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              {/* Price USD */}
-              <div>
-                <label className="block text-[11px] font-bold text-deepSlate-700 uppercase mb-1">
-                  Precio USD ($)
-                </label>
-                <div className="relative">
-                  <span className="text-deepSlate-400 text-xs absolute left-3 top-1/2 -translate-y-1/2 font-mono">$</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    required
-                    value={priceUsd}
-                    onChange={(e) => handlePriceUsdChange(e.target.value)}
-                    className="w-full pl-7 pr-3 py-2 text-xs font-mono font-bold rounded-xl bg-white border border-coral-300 focus:outline-none focus:border-coral-500 text-deepSlate-900"
-                  />
-                </div>
-              </div>
-
-              {/* Price NIO */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-[11px] font-bold text-deepSlate-700 uppercase">
-                    Precio C$ (Córdobas)
-                  </label>
-                  {isManualNio && (
-                    <span className="text-[9px] text-coral-600 font-bold">Manual</span>
-                  )}
-                </div>
-                <div className="relative">
-                  <span className="text-coral-600 text-[11px] font-bold absolute left-2.5 top-1/2 -translate-y-1/2 font-mono">C$</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    required
-                    value={priceNio}
-                    onChange={(e) => handlePriceNioChange(e.target.value)}
-                    className="w-full pl-8 pr-3 py-2 text-xs font-mono font-extrabold rounded-xl bg-white border border-coral-300 focus:outline-none focus:border-coral-500 text-coral-700"
-                  />
-                </div>
+          {showProfit && (
+            <div
+              className={`p-4 rounded-2xl border flex items-center gap-3 ${
+                profit > 0
+                  ? pct >= 15
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                    : 'bg-amber-50 border-amber-200 text-amber-900'
+                  : 'bg-rose-50 border-rose-200 text-rose-900'
+              }`}
+              aria-live="polite"
+            >
+              {profit > 0 ? (
+                <TrendingUp className="w-6 h-6 shrink-0" />
+              ) : (
+                <TrendingDown className="w-6 h-6 shrink-0" />
+              )}
+              <div className="text-sm">
+                {profit > 0 ? (
+                  <>
+                    <p className="font-extrabold text-base">
+                      Ganas {fmtNio(profit)} por pieza, {pct.toFixed(0)}%
+                    </p>
+                    {pct < 15 && <p>Es poca ganancia. Considera subir el precio.</p>}
+                  </>
+                ) : (
+                  <>
+                    <p className="font-extrabold text-base">
+                      {profit === 0 ? 'No ganas nada' : `Pierdes ${fmtNio(Math.abs(profit))} por pieza`}
+                    </p>
+                    <p>El precio de venta es menor o igual a lo que pagaste.</p>
+                  </>
+                )}
               </div>
             </div>
+          )}
 
-            {/* Profit margin estimation (Only for owner) */}
-            {role !== 'seller' && priceUsdNum > 0 && (
-              <div className="pt-2 border-t border-coral-200/60 flex items-center justify-between text-xs font-bold">
-                <span className="text-deepSlate-600">Margen Bruto Proyectado:</span>
-                <span className={`px-2 py-0.5 rounded font-mono text-[11px] ${
-                  marginPercent >= 35
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : marginPercent >= 15
-                    ? 'bg-amber-100 text-amber-800'
-                    : 'bg-rose-100 text-rose-800'
-                }`}>
-                  +{marginPercent.toFixed(1)}% (${(priceUsdNum - costNum).toFixed(2)} USD)
-                </span>
-              </div>
-            )}
-
-          </div>
-
-          {/* Form Actions */}
-          <div className="pt-3 border-t border-nacre-200 flex items-center justify-end space-x-3">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold text-deepSlate-600 hover:bg-nacre-100"
+              className="min-h-[52px] px-5 rounded-xl text-sm font-bold text-deepSlate-700 bg-nacre-100 hover:bg-nacre-200"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={isSaving}
-              className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-coral-500 hover:bg-coral-600 shadow-md shadow-coral-500/25 active:scale-95 transition-all flex items-center space-x-2 disabled:opacity-50"
+              className="min-h-[52px] px-6 rounded-xl text-base font-bold text-white bg-coral-500 hover:bg-coral-600 disabled:opacity-50 inline-flex items-center justify-center gap-2"
             >
-              <span>{isSaving ? 'Guardando...' : 'Guardar Producto'}</span>
-              <ArrowRight className="w-4 h-4" />
+              <Plus className="w-5 h-5" />
+              {isSaving ? 'Guardando...' : 'Guardar producto'}
             </button>
           </div>
-
         </form>
-
       </div>
     </div>
   );

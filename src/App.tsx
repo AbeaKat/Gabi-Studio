@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { AppLayout } from './components/layout/AppLayout';
+import { HomePage } from './pages/HomePage';
 import { InventoryPage } from './pages/InventoryPage';
 import { ClosingPage } from './pages/ClosingPage';
 import { FinancePage } from './pages/FinancePage';
@@ -47,14 +48,15 @@ export const App: React.FC = () => {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Navigate to="/app/inventory" replace />} />
+            <Route index element={<Navigate to="/app/home" replace />} />
+            <Route path="home" element={<HomePage />} />
             <Route path="inventory" element={<InventoryPage />} />
             <Route path="closing" element={<ClosingPage />} />
             <Route path="finance" element={<FinancePage />} />
             <Route path="batches" element={<BatchesPage />} />
             <Route path="audit" element={<AuditPage />} />
             <Route path="team" element={<ProfilesPage />} />
-            <Route path="*" element={<Navigate to="/app/inventory" replace />} />
+            <Route path="*" element={<Navigate to="/app/home" replace />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

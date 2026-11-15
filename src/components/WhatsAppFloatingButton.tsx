@@ -1,5 +1,6 @@
 import React from 'react';
 import { MessageCircle } from 'lucide-react';
+import { OFFICIAL_WHATSAPP_NUMBER } from '../data/realInventoryData';
 
 interface WhatsAppFloatingButtonProps {
   phoneNumber?: string;
@@ -7,7 +8,7 @@ interface WhatsAppFloatingButtonProps {
 }
 
 export const WhatsAppFloatingButton: React.FC<WhatsAppFloatingButtonProps> = ({
-  phoneNumber = '50588888888',
+  phoneNumber = OFFICIAL_WHATSAPP_NUMBER,
   defaultMessage = '¡Hola Gabi Studio! Deseo solicitar información para activar mi cuenta del sistema de inventario y finanzas.',
 }) => {
   const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(defaultMessage)}`;

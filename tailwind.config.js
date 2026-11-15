@@ -20,16 +20,16 @@ export default {
           900: '#2A241F',
         },
         coral: {
-          50: '#FFF1EF',   // Fondos badges / selección suave
-          100: '#FFE1DC',  // Acento suave
-          200: '#FFC5BC',
-          300: '#FFA496',
-          400: '#FA8271',
-          500: '#F26B5B',  // Living Coral - Primario / Botones CTA
-          600: '#E05343',  // Hover primario
-          700: '#C23E30',
-          800: '#9F3327',
-          900: '#832D24',
+          50: 'rgb(var(--brand-50) / <alpha-value>)',
+          100: 'rgb(var(--brand-100) / <alpha-value>)',
+          200: 'rgb(var(--brand-200) / <alpha-value>)',
+          300: 'rgb(var(--brand-300) / <alpha-value>)',
+          400: 'rgb(var(--brand-400) / <alpha-value>)',
+          500: 'rgb(var(--brand-500) / <alpha-value>)',
+          600: 'rgb(var(--brand-600) / <alpha-value>)',
+          700: 'rgb(var(--brand-700) / <alpha-value>)',
+          800: 'rgb(var(--brand-800) / <alpha-value>)',
+          900: 'rgb(var(--brand-900) / <alpha-value>)',
         },
         deepSlate: {
           900: '#1E242B',  // Texto principal
@@ -52,11 +52,11 @@ export default {
       },
       backgroundImage: {
         'pearl-gradient': 'linear-gradient(135deg, #FAF8F6 0%, #FFFDFB 50%, #F7EFEA 100%)',
-        'coral-gradient': 'linear-gradient(135deg, #F26B5B 0%, #FA8271 100%)',
+        'coral-gradient': 'linear-gradient(135deg, rgb(var(--brand-500)) 0%, rgb(var(--brand-400)) 100%)',
       },
       boxShadow: {
         'nacre-card': '0 4px 20px -2px rgba(30, 36, 43, 0.05), 0 2px 6px -1px rgba(30, 36, 43, 0.03)',
-        'coral-glow': '0 8px 24px -4px rgba(242, 107, 91, 0.35)',
+        'coral-glow': '0 8px 24px -4px rgb(var(--brand-500) / 0.35)',
         'modal-depth': '0 25px 50px -12px rgba(30, 36, 43, 0.18), 0 0 0 1px rgba(230, 224, 214, 0.6)',
       },
       transitionTimingFunction: {
@@ -90,4 +90,3 @@ export default {
   },
   plugins: [],
 }
-

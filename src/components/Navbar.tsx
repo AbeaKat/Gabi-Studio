@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Sparkles, MessageCircle, LogIn, Menu, X, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { OFFICIAL_WHATSAPP_NUMBER } from '../data/realInventoryData';
 
 export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -10,7 +11,7 @@ export const Navbar: React.FC = () => {
 
   const handleWhatsAppContact = () => {
     const text = encodeURIComponent('Hola Gabi Studio! Quisiera solicitar información sobre sus planes de inventario y finanzas.');
-    window.open(`https://wa.me/50588888888?text=${text}`, '_blank');
+    window.open(`https://wa.me/${OFFICIAL_WHATSAPP_NUMBER}?text=${text}`, '_blank');
   };
 
   return (

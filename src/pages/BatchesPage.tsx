@@ -28,7 +28,6 @@ import {
   saveStoredProducts,
   getStoredPriceHistory,
   saveStoredPriceHistory,
-  BATCH_IDS,
   TENANT_STELLA_ID,
 } from '../data/realInventoryData';
 
@@ -47,13 +46,13 @@ export const BatchesPage: React.FC = () => {
 
   const [batches, setBatches] = useState<Batch[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [selectedBatchId, setSelectedBatchId] = useState<string>(BATCH_IDS.GEORGINA_3);
+  const [selectedBatchId, setSelectedBatchId] = useState<string>('');
   const [step, setStep] = useState<WizardStep>(1);
 
   // Inputs del asistente
-  const [shippingUsd, setShippingUsd] = useState<string>('50.80');
-  const [amazonFeeUsd, setAmazonFeeUsd] = useState<string>('0.00');
-  const [dhlTaxUsd, setDhlTaxUsd] = useState<string>('17.20');
+  const [shippingUsd, setShippingUsd] = useState<string>('0');
+  const [amazonFeeUsd, setAmazonFeeUsd] = useState<string>('0');
+  const [dhlTaxUsd, setDhlTaxUsd] = useState<string>('0');
   const [prorateMode, setProrateMode] = useState<'per_item' | 'by_cost_weight'>('per_item');
   const [targetMarginPct, setTargetMarginPct] = useState<number>(45);
 
@@ -439,70 +438,95 @@ export const BatchesPage: React.FC = () => {
         </div>
       )}
 
-      {/* Selector de pedido / compra */}
-      <div>
-        <p className="text-sm font-bold text-deepSlate-700 mb-2.5">
-          Elige qué compra o pedido quieres calcular:
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {batches.map((b) => {
-            const isSelected = b.id === activeBatch?.id;
-            const bProds = products.filter((p) => p.batch_id === b.id);
-            const totalUsd = Number(b.total_batch_investment_usd || 0);
-            return (
-              <div
-                key={b.id}
-                className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
-                  isSelected
-                    ? 'bg-coral-50/70 border-2 border-coral-500 shadow-sm'
-                    : 'bg-white border-nacre-200 hover:bg-nacre-50'
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedBatchId(b.id);
-                    setSuccessMsg(null);
-                  }}
-                  className="text-left w-full"
-                >
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <span
-                      className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                        isSelected ? 'bg-coral-500 text-white' : 'bg-nacre-100 text-deepSlate-700'
-                      }`}
-                    >
-                      {bProds.length} {bProds.length === 1 ? 'producto' : 'productos'}
-                    </span>
-                    {isSelected && (
-                      <span className="text-xs font-bold text-coral-700">Seleccionado</span>
-                    )}
-                  </div>
-                  <p className="text-sm font-extrabold text-deepSlate-900 truncate">{b.name}</p>
-                  <p className="text-sm text-deepSlate-600 mt-1">
-                    Invertido: <strong>{fmtNio(totalUsd * exchangeRate, 0)}</strong>{' '}
-                    <span className="text-xs text-deepSlate-400">({fmtUsd(totalUsd)})</span>
-                  </p>
-                </button>
-                {bProds.length === 0 && batches.length > 1 && (
-                  <div className="mt-3 pt-2 border-t border-nacre-200 flex justify-end">
+      {/* Estado vacío si aún no hay compras o pedidos */}
+      {batches.length === 0 ? (
+        <div className="bg-white rounded-3xl border border-nacre-200 p-8 sm:p-12 text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-coral-50 border border-coral-200 text-coral-600 flex items-center justify-center mx-auto">
+            <Package className="w-7 h-7" />
+          </div>
+          <div className="space-y-1.5 max-w-md mx-auto">
+            <h2 className="text-lg sm:text-xl font-extrabold text-deepSlate-900">
+              Aún no tienes compras ni pedidos registrados
+            </h2>
+            <p className="text-sm text-deepSlate-500 leading-relaxed">
+              Crea tu primera compra o pedido para agrupar tus productos y repartir fácilmente el costo de envío e impuestos.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsNewBatchOpen(true)}
+            className="min-h-[48px] px-6 py-3 rounded-xl text-sm font-bold text-white bg-coral-500 hover:bg-coral-600 shadow-md shadow-coral-500/25 inline-flex items-center justify-center gap-2"
+          >
+            <Plus className="w-4 h-4 shrink-0" />
+            <span>Crear mi primera compra o pedido</span>
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Selector de pedido / compra */}
+          <div>
+            <p className="text-sm font-bold text-deepSlate-700 mb-2.5">
+              Elige qué compra o pedido quieres calcular:
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {batches.map((b) => {
+                const isSelected = b.id === activeBatch?.id;
+                const bProds = products.filter((p) => p.batch_id === b.id);
+                const totalUsd = Number(b.total_batch_investment_usd || 0);
+                return (
+                  <div
+                    key={b.id}
+                    className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                      isSelected
+                        ? 'bg-coral-50/70 border-2 border-coral-500 shadow-sm'
+                        : 'bg-white border-nacre-200 hover:bg-nacre-50'
+                    }`}
+                  >
                     <button
                       type="button"
-                      onClick={() => setBatchToDelete(b)}
-                      className="min-h-[36px] px-2.5 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-50 inline-flex items-center gap-1"
+                      onClick={() => {
+                        setSelectedBatchId(b.id);
+                        setSuccessMsg(null);
+                      }}
+                      className="text-left w-full"
                     >
-                      <Trash2 className="w-3.5 h-3.5" /> Borrar pedido vacío
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span
+                          className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                            isSelected ? 'bg-coral-500 text-white' : 'bg-nacre-100 text-deepSlate-700'
+                          }`}
+                        >
+                          {bProds.length} {bProds.length === 1 ? 'producto' : 'productos'}
+                        </span>
+                        {isSelected && (
+                          <span className="text-xs font-bold text-coral-700">Seleccionado</span>
+                        )}
+                      </div>
+                      <p className="text-sm font-extrabold text-deepSlate-900 truncate">{b.name}</p>
+                      <p className="text-sm text-deepSlate-600 mt-1">
+                        Invertido: <strong>{fmtNio(totalUsd * exchangeRate, 0)}</strong>{' '}
+                        <span className="text-xs text-deepSlate-400">({fmtUsd(totalUsd)})</span>
+                      </p>
                     </button>
+                    {bProds.length === 0 && batches.length > 1 && (
+                      <div className="mt-3 pt-2 border-t border-nacre-200 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setBatchToDelete(b)}
+                          className="min-h-[36px] px-2.5 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-50 inline-flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Borrar pedido vacío
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                );
+              })}
+            </div>
+          </div>
 
-      {/* Asistente en 4 pasos */}
-      <div className="bg-white rounded-3xl border border-nacre-200 shadow-xs overflow-hidden">
+          {/* Asistente en 4 pasos */}
+          <div className="bg-white rounded-3xl border border-nacre-200 shadow-xs overflow-hidden">
         {/* Barra de pasos */}
         <div className="bg-nacre-50/70 border-b border-nacre-200 p-4 sm:px-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -1126,6 +1150,8 @@ export const BatchesPage: React.FC = () => {
           )}
         </div>
       </div>
+        </>
+      )}
 
       <ConfirmDialog
         isOpen={!!batchToDelete}

@@ -47,10 +47,10 @@ export const FinancePage: React.FC = () => {
 
   const [ownerSalaryUsd, setOwnerSalaryUsd] = useState<number>(() => {
     const saved = localStorage.getItem(OWNER_SALARY_STORAGE_KEY);
-    const parsed = saved ? parseFloat(saved) : 120;
-    return isNaN(parsed) || parsed < 0 ? 120 : parsed;
+    const parsed = saved ? parseFloat(saved) : 0;
+    return isNaN(parsed) || parsed < 0 ? 0 : parsed;
   });
-  const [ownerSalaryInput, setOwnerSalaryInput] = useState<string>(() => localStorage.getItem(OWNER_SALARY_STORAGE_KEY) || '120');
+  const [ownerSalaryInput, setOwnerSalaryInput] = useState<string>(() => localStorage.getItem(OWNER_SALARY_STORAGE_KEY) || '0');
 
   const [receivableSuccessMsg, setReceivableSuccessMsg] = useState<string | null>(null);
 

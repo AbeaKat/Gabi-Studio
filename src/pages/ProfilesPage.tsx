@@ -516,11 +516,7 @@ export const ProfilesPage: React.FC = () => {
                   type="text"
                   required
                   value={ownerUsername}
-                  onChange={(e) =>
-                    setOwnerUsername(
-                      e.target.value.toLowerCase().replace(/[^a-z0-9_.-]/g, '_')
-                    )
-                  }
+                  onChange={(e) => setOwnerUsername(e.target.value)}
                   className="w-full min-h-[44px] pl-9 pr-3.5 py-2.5 text-sm font-mono font-bold rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white"
                 />
               </div>

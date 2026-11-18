@@ -438,39 +438,26 @@ CREATE POLICY "Tenant isolation for kardex_movements DELETE"
     USING (tenant_id = public.current_user_tenant_id());
 
 -- ==============================================================================
--- 7. SEED DATA DEMO (Opcional para pruebas iniciales)
+-- 7. CONFIGURACIÓN INICIAL TENANT PRINCIPAL (NIVEL 3 - GABI STUDIO)
 -- ==============================================================================
 
--- Tenant de Demostración (Multi-rubro agnóstico)
-INSERT INTO public.tenants (id, name, plan_tier, exchange_rate_nio, max_owner_profiles, max_seller_profiles, extra_paid_profiles, is_active)
+-- Tenant Principal Nivel 3 (Vacío, listo para rellenarse)
+INSERT INTO public.tenants (id, name, plan_tier, exchange_rate_nio, max_owner_profiles, max_seller_profiles, extra_paid_profiles, onboarding_completed, is_active)
 VALUES (
     '00000000-0000-0000-0000-000000000001',
-    'Comercial del Norte',
-    2,
+    'Gabi Studio',
+    3,
     36.6200,
     1,
-    1,
+    2,
     0,
+    true,
     true
-) ON CONFLICT (id) DO NOTHING;
-
--- Lote demo
-INSERT INTO public.batches (id, tenant_id, name, shipping_cost_usd, amazon_fee_usd, dhl_tax_usd, total_batch_investment_usd)
-VALUES (
-    '00000000-0000-0000-0000-000000000010',
-    '00000000-0000-0000-0000-000000000001',
-    'Lote Repuestos & Tecnología',
-    35.00,
-    15.00,
-    20.00,
-    550.00
-) ON CONFLICT (id) DO NOTHING;
-
--- Productos demo multi-rubro
-INSERT INTO public.products (id, tenant_id, batch_id, sku, name, stock_current, base_cost_usd, landed_cost_usd, price_usd, price_nio)
-VALUES
-    ('00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000010', 'REP-402', 'Kit Pastillas Freno Cerámicas Delanteras', 14, 15.00, 18.50, 38.00, 1390.00),
-    ('00000000-0000-0000-0000-000000000102', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000010', 'TEC-109', 'Adaptador USB-C Multipuerto 4K HDMI', 9, 8.50, 11.20, 26.00, 950.00),
-    ('00000000-0000-0000-0000-000000000103', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000010', 'FER-033', 'Juego Llaves Combinadas Cromo Vanadio', 22, 9.80, 12.40, 25.00, 915.00)
-ON CONFLICT (tenant_id, sku) DO NOTHING;
+) ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    plan_tier = EXCLUDED.plan_tier,
+    max_owner_profiles = EXCLUDED.max_owner_profiles,
+    max_seller_profiles = EXCLUDED.max_seller_profiles,
+    extra_paid_profiles = EXCLUDED.extra_paid_profiles,
+    onboarding_completed = EXCLUDED.onboarding_completed;
 

@@ -51,7 +51,7 @@ export function mapAuthUserToProfile(u: User, fallbackTenantId: string): Profile
 }
 
 /**
- * Resolves either a username (e.g. "valeria_ventas" or "@valeria_ventas") or an email
+ * Resolves either a username (e.g. "Gabi Studio" or "@gabi_studio") or an email
  * to the registered Supabase Auth email address.
  */
 export async function resolveLoginIdentifierToEmail(
@@ -66,6 +66,10 @@ export async function resolveLoginIdentifierToEmail(
     return { email: clean };
   }
 
+  const normalizeKey = (val: string) =>
+    val.trim().replace(/^@/, '').toLowerCase().replace(/[\s_-]+/g, '');
+  const cleanNorm = normalizeKey(clean);
+
   try {
     const { data, error } = await supabaseAdmin.auth.admin.listUsers({
       page: 1,
@@ -73,7 +77,7 @@ export async function resolveLoginIdentifierToEmail(
     });
     if (error || !data?.users) {
       return {
-        email: `${clean}@gabistudio-demo.com`,
+        email: cleanNorm === 'gabistudio' ? 'gabistudio@gabistudio.com' : `${cleanNorm}@gabistudio.com`,
       };
     }
 
@@ -82,10 +86,21 @@ export async function resolveLoginIdentifierToEmail(
         .trim()
         .replace(/^@/, '')
         .toLowerCase();
+      const metaFullName = String(u.user_metadata?.full_name || '').trim().toLowerCase();
+      const metaStoreName = String(u.user_metadata?.store_name || '').trim().toLowerCase();
       const emailPrefix = String(u.email || '')
         .split('@')[0]
         .toLowerCase();
-      return metaUsername === clean || emailPrefix === clean;
+      return (
+        metaUsername === clean ||
+        metaFullName === clean ||
+        metaStoreName === clean ||
+        emailPrefix === clean ||
+        normalizeKey(metaUsername) === cleanNorm ||
+        normalizeKey(metaFullName) === cleanNorm ||
+        normalizeKey(metaStoreName) === cleanNorm ||
+        normalizeKey(emailPrefix) === cleanNorm
+      );
     });
 
     if (!matched || !matched.email) {
@@ -97,7 +112,9 @@ export async function resolveLoginIdentifierToEmail(
 
     return { email: matched.email };
   } catch (err: any) {
-    return { email: `${clean}@gabistudio-demo.com` };
+    return {
+      email: cleanNorm === 'gabistudio' ? 'gabistudio@gabistudio.com' : `${cleanNorm}@gabistudio.com`,
+    };
   }
 }
 

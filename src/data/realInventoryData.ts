@@ -16,97 +16,101 @@ export const DEFAULT_EXCHANGE_RATE = 36.62;
 export const OFFICIAL_WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER || '50588888888';
 
 // ============================================================================
-// CUENTAS REALES CREADAS EN SUPABASE AUTH (1, 2 y 3 + Dueño y Empleado)
+// DETALLES INFORMATIVOS DE CADA TIPO DE CUENTA Y PLAN
 // ============================================================================
 export const TEST_ACCOUNT_PRESETS: TestAccountPreset[] = [
   {
     id: 'tier1-owner',
     label: 'Plan Básico (Cuenta Dueño)',
-    badge: 'Plan Básico • Dueño',
-    email: 'nivel1@gabistudio-demo.com',
-    username: 'dueno_basico',
-    password: 'demo2026',
+    badge: 'Nivel 1 • Plan Básico',
+    email: '',
+    username: '',
+    password: '',
     plan_tier: 1,
     role: 'global_owner',
-    full_name: 'Gerencia Esencial',
-    tenant_name: 'Mi Tienda Básica',
+    full_name: 'Cuenta Dueño Nivel 1',
+    tenant_name: 'Plan Básico',
     max_owner_profiles: 1,
     max_seller_profiles: 0,
     extra_paid_profiles: 0,
-    description: 'Cuenta de Dueño (1 usuario incluido). Al iniciar por primera vez podrás personalizar el nombre de tu tienda, tema de colores, foto y usuario.',
+    description:
+      'Diseñada para negocios individuales donde el dueño lleva el control directo de sus productos, ventas diarias y ganancias.',
     highlights: [
-      '1 Cuenta Dueño (sin empleados asociados)',
-      'Personalización de tienda, paleta de colores y foto de perfil',
-      'Control de productos, ventas en C$/US$ y resumen de ganancias',
+      '1 Cuenta Dueño incluida (uso individual)',
+      'Personalización de nombre de tienda, foto y paleta de colores',
+      'Catálogo de productos, alertas de stock bajo y ventas en C$ / US$',
     ],
   },
   {
     id: 'tier2-owner',
     label: 'Plan Crece (Dueño + 1 Empleado)',
-    badge: 'Plan Crece • Dueño',
-    email: 'nivel2@gabistudio-demo.com',
-    username: 'dueno_crece',
-    password: 'demo2026',
+    badge: 'Nivel 2 • Plan Crece',
+    email: '',
+    username: '',
+    password: '',
     plan_tier: 2,
     role: 'global_owner',
-    full_name: 'Gerencia Crecimiento',
-    tenant_name: 'Mi Tienda Crece',
+    full_name: 'Cuenta Dueño Nivel 2',
+    tenant_name: 'Plan Crece',
     max_owner_profiles: 1,
     max_seller_profiles: 1,
     extra_paid_profiles: 0,
-    description: 'Cuenta de Dueño con 1 cuenta de empleado asociada. Permite estilizar la tienda y gestionar usuario/contraseña de tu vendedor.',
+    description:
+      'Ideal para negocios en crecimiento que delegan la atención en mostrador y necesitan calcular costos reales de importación.',
     highlights: [
-      '1 Dueño + 1 Cuenta Empleado asociada (@valeria_ventas)',
-      'Configura nombre de usuario y contraseña de tu empleado',
-      'Costo real de compras de importación, gastos y abonos',
-    ],
-  },
-  {
-    id: 'tier2-seller',
-    label: 'Cuenta Empleado Asociada (Vendedor)',
-    badge: 'Empleado • Solo Ventas',
-    email: 'vendedor@gabistudio-demo.com',
-    username: 'valeria_ventas',
-    password: 'demo2026',
-    plan_tier: 3,
-    role: 'seller',
-    full_name: 'Valeria Morales',
-    tenant_name: 'Mi Tienda',
-    max_owner_profiles: 1,
-    max_seller_profiles: 2,
-    extra_paid_profiles: 0,
-    description: 'Cuenta de empleado vinculada a la tienda del dueño: hereda el nombre y tema de color de la tienda, sin acceso a configuración ni costos.',
-    highlights: [
-      'No puede modificar configuración de cuenta ni de la tienda',
-      'Oculta costos de compra, márgenes y finanzas del negocio',
-      'Solo registra ventas del día y consulta inventario disponible',
+      '1 Cuenta Dueño + 1 Cuenta Empleado asociada',
+      'Calculadora de costos de compra (prorrateo de envío e impuestos)',
+      'Control de gastos operativos del mes y cuentas por cobrar (abonos)',
     ],
   },
   {
     id: 'tier3-owner',
-    label: 'Plan Pro Completo (Dueño + Equipo)',
-    badge: 'Plan Pro • Dueño Global',
-    email: 'nivel3@gabistudio-demo.com',
-    username: 'dueno_pro',
-    password: 'demo2026',
+    label: 'Plan Pro (Dueño + Equipo Completo)',
+    badge: 'Nivel 3 • Plan Pro',
+    email: '',
+    username: '',
+    password: '',
     plan_tier: 3,
     role: 'global_owner',
-    full_name: 'Dirección General',
-    tenant_name: 'Mi Tienda',
+    full_name: 'Cuenta Dueño Nivel 3',
+    tenant_name: 'Plan Pro',
     max_owner_profiles: 1,
     max_seller_profiles: 2,
-    extra_paid_profiles: 1,
-    description: 'Cuenta principal de Dueño con cuentas de empleados asociadas (@valeria_ventas y @camila_ventas), personalización total y auditoría.',
+    extra_paid_profiles: 0,
+    description:
+      'Control total para tiendas consolidadas con múltiples vendedores, auditoría histórica de precios y control de bodega.',
     highlights: [
-      '1 Dueño Global + Cuentas de Empleados asociadas en Supabase',
-      'Asistente de primer inicio de sesión (Nombre, Tema, Foto, Usuarios)',
-      'Gestión de credenciales y reinicio de claves de empleados',
+      '1 Cuenta Dueño Global + 2 Cuentas de Empleado asociadas',
+      'Historial de cambios de precios, mermas y mercadería en consignación',
+      'Reportes financieros completos y gestión de accesos del equipo',
+    ],
+  },
+  {
+    id: 'seller-account',
+    label: 'Cuenta Empleado Asociada (Vendedor)',
+    badge: 'Rol Operativo • Vendedor',
+    email: '',
+    username: '',
+    password: '',
+    plan_tier: 3,
+    role: 'seller',
+    full_name: 'Cuenta Vendedor',
+    tenant_name: 'Tienda Asociada',
+    max_owner_profiles: 1,
+    max_seller_profiles: 2,
+    extra_paid_profiles: 0,
+    description:
+      'Cuenta operativa vinculada a la tienda del dueño: hereda el nombre y tema visual del negocio con permisos restringidos.',
+    highlights: [
+      'Registra ventas del día y consulta disponibilidad de inventario',
+      'Oculta costos de compra, márgenes de ganancia y finanzas del dueño',
+      'Sin acceso a modificar precios base ni configuración de la tienda',
     ],
   },
 ];
 
 // ============================================================================
-// LOTES DEMO MULTI-CATEGORÍA (4 LOTES CON 116 SKUs COMERCIALES)
+// ESTADO INICIAL VACÍO (LISTO PARA RELLENARSE)
 // ============================================================================
 export const BATCH_IDS = {
   WAYUU: '00000000-0000-0000-0000-000000000101',
@@ -115,637 +119,23 @@ export const BATCH_IDS = {
   GEORGINA_4: '00000000-0000-0000-0000-000000000104',
 };
 
-export const REAL_BATCHES: Batch[] = [
-  {
-    id: BATCH_IDS.WAYUU,
-    tenant_id: TENANT_STELLA_ID,
-    name: '1. Colección Artesanal & Accesorios',
-    shipping_cost_usd: 0.00,
-    amazon_fee_usd: 0.00,
-    dhl_tax_usd: 0.00,
-    total_batch_investment_usd: 60.00,
-    created_at: '2026-10-01T10:00:00Z',
-  },
-  {
-    id: BATCH_IDS.STELLA,
-    tenant_id: TENANT_STELLA_ID,
-    name: '2. Línea Ejecutiva Principal',
-    shipping_cost_usd: 0.00,
-    amazon_fee_usd: 0.00,
-    dhl_tax_usd: 0.00,
-    total_batch_investment_usd: 577.30,
-    created_at: '2026-10-05T10:00:00Z',
-  },
-  {
-    id: BATCH_IDS.GEORGINA_3,
-    tenant_id: TENANT_STELLA_ID,
-    name: '3. Importación Lote 3 (Consolidado)',
-    shipping_cost_usd: 50.80,
-    amazon_fee_usd: 0.00,
-    dhl_tax_usd: 17.20,
-    total_batch_investment_usd: 288.40,
-    created_at: '2026-10-15T10:00:00Z',
-  },
-  {
-    id: BATCH_IDS.GEORGINA_4,
-    tenant_id: TENANT_STELLA_ID,
-    name: '4. Importación Lote 4 (Proveedores)',
-    shipping_cost_usd: 33.84,
-    amazon_fee_usd: 39.96,
-    dhl_tax_usd: 14.40,
-    total_batch_investment_usd: 390.30,
-    created_at: '2026-10-25T10:00:00Z',
-  },
-];
+export const REAL_BATCHES: Batch[] = [];
+export const REAL_PRODUCTS: Product[] = [];
+export const INITIAL_SALES_HEADERS: SalesHeader[] = [];
+export const INITIAL_SALES_ITEMS: SalesItem[] = [];
+export const INITIAL_PRICE_HISTORY: PriceHistory[] = [];
+export const INITIAL_OPERATING_EXPENSES: OperatingExpense[] = [];
+export const INITIAL_KARDEX_MOVEMENTS: KardexMovement[] = [];
 
-// Helper para deducir nombre descriptivo según el prefijo del código real
-function inferProductName(sku: string, batchLabel: string): string {
-  const upper = sku.toUpperCase();
-  if (upper.startsWith('ART-')) return `${sku} — Bolso Artesanal (${batchLabel})`;
-  if (upper.startsWith('AN')) return `Anillo Diseño ${sku} (${batchLabel})`;
-  if (upper.startsWith('AR-') || upper.startsWith('AR0') || upper.startsWith('AR5')) {
-    return `Aretes ${sku} (${batchLabel})`;
-  }
-  if (upper.startsWith('ARETE')) return `Arete Corazón Edición Especial (${batchLabel})`;
-  if (upper.startsWith('CN')) return `Collar / Cadena ${sku} (${batchLabel})`;
-  if (upper.startsWith('PU')) return `Pulsera ${sku} (${batchLabel})`;
-  if (upper.startsWith('EC')) return `Ear Cuff / Accesorio ${sku} (${batchLabel})`;
-  if (upper.startsWith('JEW')) return `Joya Set Especial ${sku} (${batchLabel})`;
-  if (upper.startsWith('TOP')) return `Topos / Aretes ${sku} (${batchLabel})`;
-  return `Pieza ${sku} (${batchLabel})`;
-}
-
-interface RawItemSeed {
-  sku: string;
-  name?: string;
-  batch_id: string;
-  batchLabel: string;
-  stock: number;
-  base_cost_usd: number;
-  landed_cost_usd: number;
-  price_usd: number;
-  price_nio: number;
-}
-
-const RAW_PRODUCTS_SEED: RawItemSeed[] = [
-  // ==========================================================================
-  // 1. COLECCIÓN ARTESANAL & ACCESORIOS
-  // ==========================================================================
-  { sku: 'ART-Aqua', name: 'Bolso Artesanal Aqua (Colección Artesanal)', batch_id: BATCH_IDS.WAYUU, batchLabel: 'Colección Artesanal', stock: 1, base_cost_usd: 20, landed_cost_usd: 20, price_usd: 43.69, price_nio: 1600 },
-  { sku: 'ART-Rojo', name: 'Bolso Artesanal Rojo (Colección Artesanal)', batch_id: BATCH_IDS.WAYUU, batchLabel: 'Colección Artesanal', stock: 1, base_cost_usd: 20, landed_cost_usd: 20, price_usd: 43.69, price_nio: 1600 },
-  { sku: 'ART-Rosado', name: 'Bolso Artesanal Rosado (Colección Artesanal)', batch_id: BATCH_IDS.WAYUU, batchLabel: 'Colección Artesanal', stock: 1, base_cost_usd: 20, landed_cost_usd: 20, price_usd: 43.69, price_nio: 1600 },
-
-  // ==========================================================================
-  // 2. LÍNEA EJECUTIVA PRINCIPAL (40 referencias)
-  // ==========================================================================
-  { sku: 'AR-297-T51', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 10, landed_cost_usd: 10, price_usd: 16.38, price_nio: 600 },
-  { sku: 'AR-301-T30', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 11, landed_cost_usd: 11, price_usd: 18.02, price_nio: 660 },
-  { sku: 'AR-301-T30 CELESTE', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 11, landed_cost_usd: 11, price_usd: 18.02, price_nio: 660 },
-  { sku: 'AR-302-T44C', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 13, landed_cost_usd: 13, price_usd: 21.29, price_nio: 780 },
-  { sku: 'AR-302-T65', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 13, landed_cost_usd: 13, price_usd: 21.29, price_nio: 780 },
-  { sku: 'AR-302-T75', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 13, landed_cost_usd: 13, price_usd: 21.29, price_nio: 780 },
-  { sku: 'AR-311-11', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 10, landed_cost_usd: 10, price_usd: 16.38, price_nio: 600 },
-  { sku: 'AR-311-19', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 10, landed_cost_usd: 10, price_usd: 16.38, price_nio: 600 },
-  { sku: 'AR-311-5', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 10, landed_cost_usd: 10, price_usd: 16.38, price_nio: 600 },
-  { sku: 'AR-312-10C', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 16, landed_cost_usd: 16, price_usd: 28.66, price_nio: 1050 },
-  { sku: 'AR-316-26', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 16, landed_cost_usd: 16, price_usd: 16.38, price_nio: 600 },
-  { sku: 'AR-316-4', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 16, landed_cost_usd: 16, price_usd: 16.38, price_nio: 600 },
-  { sku: 'AR-336-4C', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 16, landed_cost_usd: 16, price_usd: 28.66, price_nio: 1050 },
-  { sku: 'AR-336-19C', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 16, landed_cost_usd: 16, price_usd: 28.66, price_nio: 1050 },
-  { sku: 'AR-342-T175', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 18, landed_cost_usd: 18, price_usd: 31.39, price_nio: 1150 },
-  { sku: 'AR-342-T56', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 18, landed_cost_usd: 18, price_usd: 31.39, price_nio: 1150 },
-  { sku: 'AR-353-T48', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 10, landed_cost_usd: 10, price_usd: 16.38, price_nio: 600 },
-  { sku: 'AR-353-T75', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 10, landed_cost_usd: 10, price_usd: 16.38, price_nio: 600 },
-  { sku: 'AR-398-19C', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 14, landed_cost_usd: 14, price_usd: 23.20, price_nio: 850 },
-  { sku: 'AR-398-6C', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 14, landed_cost_usd: 14, price_usd: 23.20, price_nio: 850 },
-  { sku: 'AR-402-6 NARA', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 18, landed_cost_usd: 18, price_usd: 31.39, price_nio: 1150 },
-  { sku: 'AR-402-7C', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 18, landed_cost_usd: 18, price_usd: 31.39, price_nio: 1150 },
-  { sku: 'AR-449-38', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 25, landed_cost_usd: 25, price_usd: 43.67, price_nio: 1600 },
-  { sku: 'AR-450-105', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 25, landed_cost_usd: 25, price_usd: 43.67, price_nio: 1600 },
-  { sku: 'AR-462-1C', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 16, landed_cost_usd: 16, price_usd: 28.66, price_nio: 1050 },
-  { sku: 'AR-477 Na', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 20, landed_cost_usd: 20, price_usd: 34.94, price_nio: 1280 },
-  { sku: 'AR-477 RO', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 20, landed_cost_usd: 20, price_usd: 34.94, price_nio: 1280 },
-  { sku: 'AR-505-27', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 18, landed_cost_usd: 18, price_usd: 31.39, price_nio: 1150 },
-  { sku: 'AR-975-12C', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 13, landed_cost_usd: 13, price_usd: 21.29, price_nio: 780 },
-  { sku: 'AR541-2-48', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 10.50, landed_cost_usd: 10.50, price_usd: 17.74, price_nio: 650 },
-  { sku: 'JEW-205326', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 23.35, landed_cost_usd: 23.35, price_usd: 25.93, price_nio: 950 },
-  { sku: 'JEW118321', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 14, landed_cost_usd: 14, price_usd: 16.38, price_nio: 600 },
-  { sku: 'JEW118321 / ROSA', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 14, landed_cost_usd: 14, price_usd: 16.38, price_nio: 600 },
-  { sku: 'PU-499-3', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 16.07, landed_cost_usd: 16.07, price_usd: 19.11, price_nio: 700 },
-  { sku: 'PU-832', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 18, landed_cost_usd: 18, price_usd: 31.39, price_nio: 1150 },
-  { sku: 'PU-975-1', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 13, landed_cost_usd: 13, price_usd: 21.29, price_nio: 780 },
-  { sku: 'PU203-T21/31', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 18, landed_cost_usd: 18, price_usd: 31.39, price_nio: 1150 },
-  { sku: 'Top-035-14', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 10.88, landed_cost_usd: 10.88, price_usd: 18.48, price_nio: 677 },
-  { sku: 'Top-036-T50', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 12, landed_cost_usd: 12, price_usd: 15.01, price_nio: 550 },
-  { sku: 'ARETE CORAZON', batch_id: BATCH_IDS.STELLA, batchLabel: 'Línea Ejecutiva', stock: 1, base_cost_usd: 12.00, landed_cost_usd: 12.00, price_usd: 20.25, price_nio: 742 },
-
-  // ==========================================================================
-  // 3. IMPORTACIÓN LOTE 3 (CONSOLIDADO)
-  // Incluye Costo Base (Valor Unitario) y Costo Unitario Landed (+Envío $1.27 +DHL $0.43)
-  // ==========================================================================
-  { sku: 'AN02144', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 4.20, landed_cost_usd: 5.90, price_usd: 10.92, price_nio: 400 },
-  { sku: 'AN02107', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 4.00, landed_cost_usd: 5.70, price_usd: 10.55, price_nio: 390 },
-  { sku: 'AN02092', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 4.00, landed_cost_usd: 5.70, price_usd: 10.55, price_nio: 390 },
-  { sku: 'AN02134', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 4.20, landed_cost_usd: 5.90, price_usd: 10.92, price_nio: 400 },
-  { sku: 'AN02146', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 4.20, landed_cost_usd: 5.90, price_usd: 10.92, price_nio: 400 },
-  { sku: 'AR02064', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 1.90, landed_cost_usd: 3.60, price_usd: 6.66, price_nio: 250 },
-  { sku: 'AR02070', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 2, base_cost_usd: 1.90, landed_cost_usd: 3.60, price_usd: 6.66, price_nio: 250 },
-  { sku: 'AR02072', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 2.40, landed_cost_usd: 4.10, price_usd: 7.59, price_nio: 280 },
-  { sku: 'AR02081', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 2, base_cost_usd: 2.40, landed_cost_usd: 4.10, price_usd: 7.59, price_nio: 280 },
-  { sku: 'AR01928', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 2, base_cost_usd: 1.50, landed_cost_usd: 3.20, price_usd: 5.92, price_nio: 220 },
-  { sku: 'AR01993', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 4.20, landed_cost_usd: 5.90, price_usd: 10.92, price_nio: 400 },
-  { sku: 'AR02111', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 4.70, landed_cost_usd: 6.40, price_usd: 11.84, price_nio: 440 },
-  { sku: 'AR02113', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 2, base_cost_usd: 5.80, landed_cost_usd: 7.50, price_usd: 13.88, price_nio: 510 },
-  { sku: 'AR02068', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 3, base_cost_usd: 3.00, landed_cost_usd: 4.70, price_usd: 8.70, price_nio: 320 },
-  { sku: 'AR01825', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 4.00, landed_cost_usd: 5.70, price_usd: 10.55, price_nio: 390 },
-  { sku: 'AR02140', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 4.20, landed_cost_usd: 5.90, price_usd: 10.92, price_nio: 400 },
-  { sku: 'AR01826', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 4.20, landed_cost_usd: 5.90, price_usd: 10.92, price_nio: 400 },
-  { sku: 'AR02075', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 7.60, landed_cost_usd: 9.30, price_usd: 17.21, price_nio: 630 },
-  { sku: 'AR02154', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 7.60, landed_cost_usd: 9.30, price_usd: 17.21, price_nio: 630 },
-  { sku: 'AR02069', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 2, base_cost_usd: 7.90, landed_cost_usd: 9.60, price_usd: 17.76, price_nio: 650 },
-  { sku: 'CN02153', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 5.70, landed_cost_usd: 7.40, price_usd: 13.69, price_nio: 500 },
-  { sku: 'CN02003', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 6.00, landed_cost_usd: 7.70, price_usd: 14.25, price_nio: 520 },
-  { sku: 'CN02008', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 9.70, landed_cost_usd: 11.40, price_usd: 21.09, price_nio: 780 },
-  { sku: 'PU02020', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 5.00, landed_cost_usd: 6.70, price_usd: 12.40, price_nio: 460 },
-  { sku: 'PU02007', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 2, base_cost_usd: 2.80, landed_cost_usd: 4.50, price_usd: 8.33, price_nio: 310 },
-  { sku: 'PU02037', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 5.00, landed_cost_usd: 6.70, price_usd: 12.40, price_nio: 460 },
-  { sku: 'AN02090', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 4.00, landed_cost_usd: 5.70, price_usd: 10.55, price_nio: 390 },
-  { sku: 'AR02079', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 4.60, landed_cost_usd: 6.30, price_usd: 11.66, price_nio: 430 },
-  { sku: 'AR02136', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 5.70, landed_cost_usd: 7.40, price_usd: 13.69, price_nio: 500 },
-  { sku: 'AR02067', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 5.40, landed_cost_usd: 7.10, price_usd: 13.14, price_nio: 480 },
-  { sku: 'CN02013', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 5.00, landed_cost_usd: 6.70, price_usd: 12.40, price_nio: 460 },
-  { sku: 'CN02004', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 5.70, landed_cost_usd: 7.40, price_usd: 13.69, price_nio: 500 },
-  { sku: 'PU01937', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 7.00, landed_cost_usd: 8.70, price_usd: 16.10, price_nio: 590 },
-  { sku: 'AR01973', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 5.50, landed_cost_usd: 7.20, price_usd: 13.32, price_nio: 490 },
-  { sku: 'AR02116', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 7.30, landed_cost_usd: 9.00, price_usd: 16.65, price_nio: 610 },
-  { sku: 'AR02148', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 11.40, landed_cost_usd: 13.10, price_usd: 24.24, price_nio: 500 },
-  { sku: 'AR01976', batch_id: BATCH_IDS.GEORGINA_3, batchLabel: 'Importación Lote 3', stock: 1, base_cost_usd: 12.40, landed_cost_usd: 14.10, price_usd: 26.09, price_nio: 540 },
-
-  // ==========================================================================
-  // 4. IMPORTACIÓN LOTE 4 (PROVEEDORES)
-  // Incluye Costo Real Base y Costo Landed (+Amazon $1.11 +Envío $0.94 +DHL $0.40)
-  // ==========================================================================
-  { sku: 'EC01609', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 2.60, landed_cost_usd: 5.05, price_usd: 9.34, price_nio: 345 },
-  { sku: 'EC01748', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 2.70, landed_cost_usd: 5.15, price_usd: 9.53, price_nio: 350 },
-  { sku: 'EC01744', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 2.70, landed_cost_usd: 5.15, price_usd: 9.53, price_nio: 350 },
-  { sku: 'AN01732', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 4.00, landed_cost_usd: 6.45, price_usd: 11.93, price_nio: 440 },
-  { sku: 'AN01685', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 3.70, landed_cost_usd: 6.15, price_usd: 11.38, price_nio: 420 },
-  { sku: 'AN01815', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 7.20, landed_cost_usd: 9.65, price_usd: 17.85, price_nio: 660 },
-  { sku: 'AN01733', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 4.00, landed_cost_usd: 6.45, price_usd: 11.93, price_nio: 440 },
-  { sku: 'AN01998', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 3.70, landed_cost_usd: 6.15, price_usd: 11.38, price_nio: 420 },
-  { sku: 'AN01731', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 4.70, landed_cost_usd: 7.15, price_usd: 13.23, price_nio: 490 },
-  { sku: 'AN01817', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 3.20, landed_cost_usd: 5.65, price_usd: 10.45, price_nio: 390 },
-  { sku: 'AN01854', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 2, base_cost_usd: 12.50, landed_cost_usd: 14.95, price_usd: 27.66, price_nio: 1015 },
-  { sku: 'AN01851', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 19.10, landed_cost_usd: 21.55, price_usd: 34.48, price_nio: 1253 },
-  { sku: 'AN01853', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 14.40, landed_cost_usd: 16.85, price_usd: 31.17, price_nio: 1150 },
-  { sku: 'AR01931', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 11.80, landed_cost_usd: 14.25, price_usd: 26.36, price_nio: 570 },
-  { sku: 'AR02000', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 11.80, landed_cost_usd: 14.25, price_usd: 26.36, price_nio: 570 },
-  { sku: 'AR01995', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 3.50, landed_cost_usd: 5.95, price_usd: 11.01, price_nio: 400 },
-  { sku: 'AR01598', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 5.00, landed_cost_usd: 7.45, price_usd: 13.78, price_nio: 510 },
-  { sku: 'AR01602', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 5.70, landed_cost_usd: 8.15, price_usd: 15.08, price_nio: 560 },
-  { sku: 'AR01613', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 2, base_cost_usd: 5.70, landed_cost_usd: 8.15, price_usd: 15.08, price_nio: 560 },
-  { sku: 'AR01975', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 6.50, landed_cost_usd: 8.95, price_usd: 16.56, price_nio: 610 },
-  { sku: 'AR01824', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 8.50, landed_cost_usd: 10.95, price_usd: 20.26, price_nio: 750 },
-  { sku: 'AR01827', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 5.20, landed_cost_usd: 7.65, price_usd: 14.15, price_nio: 520 },
-  { sku: 'AR01828', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 8.30, landed_cost_usd: 10.75, price_usd: 19.89, price_nio: 730 },
-  { sku: 'AR01830', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 6.50, landed_cost_usd: 8.95, price_usd: 16.56, price_nio: 600 },
-  { sku: 'AR01867', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 15.50, landed_cost_usd: 17.95, price_usd: 33.21, price_nio: 1220 },
-  { sku: 'AR01859', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 22.70, landed_cost_usd: 25.15, price_usd: 46.53, price_nio: 1705 },
-  { sku: 'PU01887', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 5.70, landed_cost_usd: 8.15, price_usd: 15.08, price_nio: 560 },
-  { sku: 'PU01880', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 5.70, landed_cost_usd: 8.15, price_usd: 15.08, price_nio: 560 },
-  { sku: 'PU01902', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 10.00, landed_cost_usd: 12.45, price_usd: 23.03, price_nio: 510 },
-  { sku: 'PU01885', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 16.00, landed_cost_usd: 18.45, price_usd: 34.13, price_nio: 710 },
-  { sku: 'PU01913', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 14.00, landed_cost_usd: 16.45, price_usd: 30.43, price_nio: 640 },
-  { sku: 'CN01882', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 10.10, landed_cost_usd: 12.55, price_usd: 23.22, price_nio: 850 },
-  { sku: 'CN01879', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 10.10, landed_cost_usd: 12.55, price_usd: 23.22, price_nio: 850 },
-  { sku: 'CN01910', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 9.10, landed_cost_usd: 11.55, price_usd: 21.37, price_nio: 790 },
-  { sku: 'CN01896', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 10.10, landed_cost_usd: 12.55, price_usd: 23.22, price_nio: 850 },
-  { sku: 'CN01894', batch_id: BATCH_IDS.GEORGINA_4, batchLabel: 'Importación Lote 4', stock: 1, base_cost_usd: 10.10, landed_cost_usd: 12.55, price_usd: 23.22, price_nio: 850 },
-];
-
-export const REAL_PRODUCTS: Product[] = RAW_PRODUCTS_SEED.map((item, idx) => ({
-  id: `00000000-0000-0000-0001-${String(idx + 1).padStart(12, '0')}`,
-  tenant_id: TENANT_STELLA_ID,
-  batch_id: item.batch_id,
-  sku: item.sku,
-  name: item.name || inferProductName(item.sku, item.batchLabel),
-  stock_current: item.stock,
-  base_cost_usd: item.base_cost_usd,
-  landed_cost_usd: item.landed_cost_usd,
-  price_usd: item.price_usd,
-  price_nio: item.price_nio,
-  created_at: '2026-10-15T10:00:00Z',
-  updated_at: '2026-11-01T10:00:00Z',
-}));
-
-// ============================================================================
-// VENTAS DEMO INICIALES CON SNAPSHOTS INMUTABLES (SOBRE EL INVENTARIO REAL)
-// ============================================================================
-export const INITIAL_SALES_HEADERS: SalesHeader[] = [
-  {
-    id: 'sale-hdr-001',
-    tenant_id: TENANT_STELLA_ID,
-    created_by: '00000000-0000-0000-0000-000000000099',
-    entry_mode: 'single_sale',
-    sale_date: '2026-11-06',
-    payment_method: 'cash_nio',
-    customer_name: 'Cliente Showroom',
-    customer_phone: '50588887777',
-    amount_paid_nio: 2600.00,
-    balance_due_nio: 0,
-    payment_status: 'paid',
-    promo_tag: 'Cliente Showroom',
-    notes: 'Venta en vivo colección principal',
-    created_at: '2026-11-06T15:30:00Z',
-  },
-  {
-    id: 'sale-hdr-002',
-    tenant_id: TENANT_STELLA_ID,
-    created_by: '00000000-0000-0000-0000-000000000099',
-    entry_mode: 'daily_closing_excel',
-    sale_date: '2026-11-07',
-    payment_method: 'transfer_bac',
-    customer_name: null,
-    customer_phone: null,
-    amount_paid_nio: 1180.00,
-    balance_due_nio: 0,
-    payment_status: 'paid',
-    promo_tag: 'Cierre Viernes',
-    notes: 'Cierre diario importado desde Excel',
-    created_at: '2026-11-07T19:10:00Z',
-  },
-  {
-    id: 'sale-hdr-003',
-    tenant_id: TENANT_STELLA_ID,
-    created_by: '00000000-0000-0000-0000-000000000099',
-    entry_mode: 'daily_closing_manual',
-    sale_date: '2026-11-08',
-    payment_method: 'pos_card',
-    customer_name: null,
-    customer_phone: null,
-    amount_paid_nio: 2705.00,
-    balance_due_nio: 0,
-    payment_status: 'paid',
-    due_date: null,
-    promo_tag: 'Promo Fin de Semana',
-    notes: 'Salidas marcadas por checklist manual hoy',
-    created_at: '2026-11-08T14:20:00Z',
-  },
-  {
-    id: 'sale-hdr-004',
-    tenant_id: TENANT_STELLA_ID,
-    created_by: '00000000-0000-0000-0000-000000000099',
-    entry_mode: 'single_sale',
-    sale_date: '2026-11-09',
-    payment_method: 'credit_layaway',
-    customer_name: 'Carolina Mendoza',
-    customer_phone: '50588442211',
-    amount_paid_nio: 600.00,
-    balance_due_nio: 1000.00,
-    payment_status: 'partial',
-    due_date: '2026-11-20',
-    promo_tag: 'Apartado Quincena',
-    notes: 'Apartado con abono inicial en efectivo',
-    created_at: '2026-11-09T11:15:00Z',
-  },
-];
-
-export const INITIAL_SALES_ITEMS: SalesItem[] = [
-  {
-    id: 'sale-itm-001',
-    tenant_id: TENANT_STELLA_ID,
-    sale_header_id: 'sale-hdr-001',
-    product_id: REAL_PRODUCTS[0].id, // ART-Aqua
-    sku_snapshot: 'ART-Aqua',
-    product_name_snapshot: 'Bolso Artesanal Aqua (Colección Artesanal)',
-    batch_id_snapshot: BATCH_IDS.WAYUU,
-    quantity: 1,
-    unit_cost_usd_snapshot: 20.00,
-    list_price_usd_snapshot: 43.69,
-    list_price_nio_snapshot: 1600.00,
-    discount_nio: 0,
-    final_unit_price_nio: 1600.00,
-    final_unit_price_usd: 43.69,
-    exchange_rate_snapshot: 36.62,
-    net_profit_usd: 23.69,
-    payment_method: 'cash_nio',
-    customer_name: 'Cliente Showroom',
-    customer_phone: '50588887777',
-    amount_paid_nio: 1600.00,
-    balance_due_nio: 0,
-    payment_status: 'paid',
-    created_at: '2026-11-06T15:30:00Z',
-  },
-  {
-    id: 'sale-itm-002',
-    tenant_id: TENANT_STELLA_ID,
-    sale_header_id: 'sale-hdr-001',
-    product_id: REAL_PRODUCTS[12].id, // AR-312-10C
-    sku_snapshot: 'AR-312-10C',
-    product_name_snapshot: 'Aretes AR-312-10C (Línea Ejecutiva)',
-    batch_id_snapshot: BATCH_IDS.STELLA,
-    quantity: 1,
-    unit_cost_usd_snapshot: 16.00,
-    list_price_usd_snapshot: 28.66,
-    list_price_nio_snapshot: 1050.00,
-    discount_nio: 50.00,
-    final_unit_price_nio: 1000.00,
-    final_unit_price_usd: 27.31,
-    exchange_rate_snapshot: 36.62,
-    net_profit_usd: 11.31,
-    payment_method: 'cash_usd',
-    customer_name: 'Cliente Showroom',
-    customer_phone: '50588887777',
-    amount_paid_nio: 1000.00,
-    balance_due_nio: 0,
-    payment_status: 'paid',
-    created_at: '2026-11-06T15:30:00Z',
-  },
-  {
-    id: 'sale-itm-003',
-    tenant_id: TENANT_STELLA_ID,
-    sale_header_id: 'sale-hdr-002',
-    product_id: REAL_PRODUCTS[43].id, // AN02144
-    sku_snapshot: 'AN02144',
-    product_name_snapshot: 'Anillo Diseño AN02144 (Importación Lote 3)',
-    batch_id_snapshot: BATCH_IDS.GEORGINA_3,
-    quantity: 1,
-    unit_cost_usd_snapshot: 5.90,
-    list_price_usd_snapshot: 10.92,
-    list_price_nio_snapshot: 400.00,
-    discount_nio: 0,
-    final_unit_price_nio: 400.00,
-    final_unit_price_usd: 10.92,
-    exchange_rate_snapshot: 36.62,
-    net_profit_usd: 5.02,
-    payment_method: 'transfer_bac',
-    customer_name: null,
-    customer_phone: null,
-    amount_paid_nio: 400.00,
-    balance_due_nio: 0,
-    payment_status: 'paid',
-    created_at: '2026-11-07T19:10:00Z',
-  },
-  {
-    id: 'sale-itm-004',
-    tenant_id: TENANT_STELLA_ID,
-    sale_header_id: 'sale-hdr-002',
-    product_id: REAL_PRODUCTS[65].id, // CN02008
-    sku_snapshot: 'CN02008',
-    product_name_snapshot: 'Collar / Cadena CN02008 (Importación Lote 3)',
-    batch_id_snapshot: BATCH_IDS.GEORGINA_3,
-    quantity: 1,
-    unit_cost_usd_snapshot: 11.40,
-    list_price_usd_snapshot: 21.09,
-    list_price_nio_snapshot: 780.00,
-    discount_nio: 0,
-    final_unit_price_nio: 780.00,
-    final_unit_price_usd: 21.30,
-    exchange_rate_snapshot: 36.62,
-    net_profit_usd: 9.90,
-    payment_method: 'transfer_lafise',
-    customer_name: null,
-    customer_phone: null,
-    amount_paid_nio: 780.00,
-    balance_due_nio: 0,
-    payment_status: 'paid',
-    created_at: '2026-11-07T19:10:00Z',
-  },
-  {
-    id: 'sale-itm-005',
-    tenant_id: TENANT_STELLA_ID,
-    sale_header_id: 'sale-hdr-003',
-    product_id: REAL_PRODUCTS[90].id, // AN01854
-    sku_snapshot: 'AN01854',
-    product_name_snapshot: 'Anillo Diseño AN01854 (Importación Lote 4)',
-    batch_id_snapshot: BATCH_IDS.GEORGINA_4,
-    quantity: 1,
-    unit_cost_usd_snapshot: 14.95,
-    list_price_usd_snapshot: 27.66,
-    list_price_nio_snapshot: 1015.00,
-    discount_nio: 15.00,
-    final_unit_price_nio: 1000.00,
-    final_unit_price_usd: 27.31,
-    exchange_rate_snapshot: 36.62,
-    net_profit_usd: 12.36,
-    payment_method: 'pos_card',
-    customer_name: null,
-    customer_phone: null,
-    amount_paid_nio: 1000.00,
-    balance_due_nio: 0,
-    payment_status: 'paid',
-    created_at: '2026-11-08T14:20:00Z',
-  },
-  {
-    id: 'sale-itm-006',
-    tenant_id: TENANT_STELLA_ID,
-    sale_header_id: 'sale-hdr-003',
-    product_id: REAL_PRODUCTS[105].id, // AR01859
-    sku_snapshot: 'AR01859',
-    product_name_snapshot: 'Aretes AR01859 (Importación Lote 4)',
-    batch_id_snapshot: BATCH_IDS.GEORGINA_4,
-    quantity: 1,
-    unit_cost_usd_snapshot: 25.15,
-    list_price_usd_snapshot: 46.53,
-    list_price_nio_snapshot: 1705.00,
-    discount_nio: 0,
-    final_unit_price_nio: 1705.00,
-    final_unit_price_usd: 46.56,
-    exchange_rate_snapshot: 36.62,
-    net_profit_usd: 21.41,
-    payment_method: 'cash_nio',
-    customer_name: null,
-    customer_phone: null,
-    amount_paid_nio: 1705.00,
-    balance_due_nio: 0,
-    payment_status: 'paid',
-    due_date: null,
-    created_at: '2026-11-08T14:20:00Z',
-  },
-  {
-    id: 'sale-itm-007',
-    tenant_id: TENANT_STELLA_ID,
-    sale_header_id: 'sale-hdr-004',
-    product_id: REAL_PRODUCTS[22].id, // AR-449-38
-    sku_snapshot: 'AR-449-38',
-    product_name_snapshot: 'Aretes AR-449-38 (Línea Ejecutiva)',
-    batch_id_snapshot: BATCH_IDS.STELLA,
-    quantity: 1,
-    unit_cost_usd_snapshot: 25.00,
-    list_price_usd_snapshot: 43.67,
-    list_price_nio_snapshot: 1600.00,
-    discount_nio: 0,
-    final_unit_price_nio: 1600.00,
-    final_unit_price_usd: 43.67,
-    exchange_rate_snapshot: 36.62,
-    net_profit_usd: 18.67,
-    payment_method: 'credit_layaway',
-    customer_name: 'Carolina Mendoza',
-    customer_phone: '50588442211',
-    amount_paid_nio: 600.00,
-    balance_due_nio: 1000.00,
-    payment_status: 'partial',
-    due_date: '2026-11-20',
-    created_at: '2026-11-09T11:15:00Z',
-  },
-];
-
-// ============================================================================
-// HISTORIAL DE AUDITORÍA DE PRECIOS INICIAL (NIVEL 3)
-// ============================================================================
-export const INITIAL_PRICE_HISTORY: PriceHistory[] = [
-  {
-    id: 'ph-001',
-    tenant_id: TENANT_STELLA_ID,
-    product_id: REAL_PRODUCTS[43].id, // AN02144
-    old_cost_usd: 4.20,
-    new_cost_usd: 5.90,
-    old_price_usd: 9.50,
-    new_price_usd: 10.92,
-    old_price_nio: 350,
-    new_price_nio: 400,
-    reason: 'Prorrateo Importación Lote 3 (+Envío $1.27 +DHL $0.43)',
-    changed_at: '2026-10-16T11:20:00Z',
-  },
-  {
-    id: 'ph-002',
-    tenant_id: TENANT_STELLA_ID,
-    product_id: REAL_PRODUCTS[80].id, // EC01609
-    old_cost_usd: 2.60,
-    new_cost_usd: 5.05,
-    old_price_usd: 8.00,
-    new_price_usd: 9.34,
-    old_price_nio: 295,
-    new_price_nio: 345,
-    reason: 'Prorrateo Importación Lote 4 (+Amazon $1.11 +Envío $0.94 +DHL $0.40)',
-    changed_at: '2026-10-26T09:45:00Z',
-  },
-  {
-    id: 'ph-003',
-    tenant_id: TENANT_STELLA_ID,
-    product_id: REAL_PRODUCTS[25].id, // AR-449-38
-    old_cost_usd: 25.00,
-    new_cost_usd: 25.00,
-    old_price_usd: 40.96,
-    new_price_usd: 43.67,
-    old_price_nio: 1500,
-    new_price_nio: 1600,
-    reason: 'Ajuste comercial Línea Ejecutiva Principal',
-    changed_at: '2026-11-02T16:15:00Z',
-  },
-  {
-    id: 'ph-004',
-    tenant_id: TENANT_STELLA_ID,
-    product_id: REAL_PRODUCTS[93].id, // AR01931
-    old_cost_usd: 14.25,
-    new_cost_usd: 14.25,
-    old_price_usd: 26.36,
-    new_price_usd: 26.36,
-    old_price_nio: 966,
-    new_price_nio: 570,
-    reason: 'Redondeo promocional Precio Final (C$ 966 -> C$ 570)',
-    changed_at: '2026-11-04T12:00:00Z',
-  },
-];
-
-// ============================================================================
-// GASTOS OPERATIVOS INICIALES (NIVEL 2 y 3)
-// ============================================================================
-export const INITIAL_OPERATING_EXPENSES: OperatingExpense[] = [
-  {
-    id: 'exp-001',
-    tenant_id: TENANT_STELLA_ID,
-    category: 'empaque',
-    description: 'Bolsas de terciopelo, cajas de regalo y papelería corporativa',
-    amount_usd: 18.50,
-    amount_nio: 677.47,
-    expense_date: '2026-11-02',
-    created_at: '2026-11-02T10:00:00Z',
-  },
-  {
-    id: 'exp-002',
-    tenant_id: TENANT_STELLA_ID,
-    category: 'publicidad',
-    description: 'Pauta Instagram & Facebook Ads — Campaña Colección Principal',
-    amount_usd: 25.00,
-    amount_nio: 915.50,
-    expense_date: '2026-11-05',
-    created_at: '2026-11-05T14:00:00Z',
-  },
-  {
-    id: 'exp-003',
-    tenant_id: TENANT_STELLA_ID,
-    category: 'envio_local',
-    description: 'Motorizado entregas Managua (3 envíos subsidiados)',
-    amount_usd: 8.20,
-    amount_nio: 300.28,
-    expense_date: '2026-11-07',
-    created_at: '2026-11-07T18:00:00Z',
-  },
-];
-
-// ============================================================================
-// MOVIMIENTOS DE KARDEX Y AUDITORÍA DE BODEGA (NIVEL 3)
-// ============================================================================
-export const INITIAL_KARDEX_MOVEMENTS: KardexMovement[] = [
-  {
-    id: 'kdx-001',
-    tenant_id: TENANT_STELLA_ID,
-    product_id: REAL_PRODUCTS[56].id, // AR02068
-    sku: 'AR02068',
-    product_name: 'Aretes AR02068 (Importación Lote 3)',
-    movement_type: 'consignacion_salida',
-    location: 'Showroom Aliado — Galerías',
-    quantity_delta: -1,
-    stock_before: 4,
-    stock_after: 3,
-    unit_cost_usd: 4.70,
-    reason: 'Traslado a exhibición en consignación',
-    created_by_name: 'Dirección General',
-    created_at: '2026-11-03T11:00:00Z',
-  },
-  {
-    id: 'kdx-002',
-    tenant_id: TENANT_STELLA_ID,
-    product_id: REAL_PRODUCTS[49].id, // AR02070
-    sku: 'AR02070',
-    product_name: 'Aretes AR02070 (Importación Lote 3)',
-    movement_type: 'merma_dano',
-    location: 'Bodega Principal',
-    quantity_delta: -1,
-    stock_before: 3,
-    stock_after: 2,
-    unit_cost_usd: 3.60,
-    reason: 'Broche averiado en revisión de control de calidad',
-    created_by_name: 'Dirección General',
-    created_at: '2026-11-05T16:40:00Z',
-  },
-];
-
-// ============================================================================
-// PERFILES DE EQUIPO INICIALES (GESTIÓN DE ASIENTOS NIVEL 2 y 3)
-// ============================================================================
 export const INITIAL_TEAM_PROFILES: Profile[] = [
   {
-    id: '00000000-0000-0000-0000-000000000099',
+    id: 'ca12a054-9229-42bc-97a7-fdbeac2d5e01',
     tenant_id: TENANT_STELLA_ID,
-    full_name: 'Dirección General (Dueño Global)',
+    full_name: 'Gabi Studio',
+    username: 'Gabi Studio',
     role: 'global_owner',
-    created_at: '2026-10-01T08:00:00Z',
-  },
-  {
-    id: '00000000-0000-0000-0000-000000000105',
-    tenant_id: TENANT_STELLA_ID,
-    full_name: 'Valeria Morales (Vendedora Sala)',
-    role: 'seller',
-    created_at: '2026-10-12T09:30:00Z',
-  },
-  {
-    id: '00000000-0000-0000-0000-000000000106',
-    tenant_id: TENANT_STELLA_ID,
-    full_name: 'Camila Rivas (Vendedora Turno PM / WhatsApp)',
-    role: 'seller',
-    created_at: '2026-10-20T14:00:00Z',
+    onboarding_completed: true,
+    created_at: '2026-11-18T00:00:00Z',
   },
 ];
 
@@ -764,7 +154,7 @@ export const STORAGE_KEYS = {
   TEAM_PROFILES: 'gabi_studio_team_profiles',
 };
 
-const CURRENT_DATA_VERSION = 'gabi-studio-clean-v3';
+const CURRENT_DATA_VERSION = 'gabi-studio-empty-v1';
 
 let activeCloudTenantId: string = TENANT_STELLA_ID;
 let cloudSyncTimer: ReturnType<typeof setTimeout> | null = null;
@@ -838,11 +228,10 @@ export async function hydrateStoreFromSupabaseCloud(
       }
       localStorage.setItem(STORAGE_KEYS.DATA_VERSION, CURRENT_DATA_VERSION);
     } else {
-      // Seed initial cloud store data for this tenant in Supabase
       pushStoreDataToSupabaseCloud(tenantId);
     }
   } catch {
-    // Fallback to seeded local cache
+    // Fallback to local cache
   }
 }
 
@@ -857,6 +246,7 @@ export function ensureRealInventorySeeded(forceReset = false): void {
     localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(INITIAL_OPERATING_EXPENSES));
     localStorage.setItem(STORAGE_KEYS.KARDEX, JSON.stringify(INITIAL_KARDEX_MOVEMENTS));
     localStorage.setItem(STORAGE_KEYS.TEAM_PROFILES, JSON.stringify(INITIAL_TEAM_PROFILES));
+    localStorage.removeItem('gabi_studio_owner_salary_usd');
     localStorage.setItem(STORAGE_KEYS.DATA_VERSION, CURRENT_DATA_VERSION);
     if (forceReset) {
       pushStoreDataToSupabaseCloud(activeCloudTenantId);
@@ -950,4 +340,3 @@ export function getStoredTeamProfiles(): Profile[] {
 export function saveStoredTeamProfiles(profiles: Profile[]): void {
   localStorage.setItem(STORAGE_KEYS.TEAM_PROFILES, JSON.stringify(profiles));
 }
-

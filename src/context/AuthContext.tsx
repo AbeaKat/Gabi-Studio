@@ -99,7 +99,7 @@ interface AuthContextType {
 
 const DEFAULT_FALLBACK_TENANT: Tenant = {
   id: TENANT_STELLA_ID,
-  name: 'Mi Tienda',
+  name: 'Gabi Studio',
   plan_tier: 3,
   exchange_rate_nio: DEFAULT_EXCHANGE_RATE,
   max_owner_profiles: 1,
@@ -107,17 +107,17 @@ const DEFAULT_FALLBACK_TENANT: Tenant = {
   extra_paid_profiles: 0,
   is_active: true,
   theme_palette: 'coral',
-  onboarding_completed: false,
+  onboarding_completed: true,
   created_at: new Date().toISOString(),
 };
 
 const DEFAULT_FALLBACK_PROFILE: Profile = {
-  id: '00000000-0000-0000-0000-000000000099',
+  id: 'ca12a054-9229-42bc-97a7-fdbeac2d5e01',
   tenant_id: TENANT_STELLA_ID,
-  full_name: 'Dirección General',
-  username: 'dueno_pro',
+  full_name: 'Gabi Studio',
+  username: 'Gabi Studio',
   role: 'global_owner',
-  onboarding_completed: false,
+  onboarding_completed: true,
   created_at: new Date().toISOString(),
 };
 
@@ -405,9 +405,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanOwnerName = payload.ownerFullName.trim();
     const cleanUsername = payload.ownerUsername
       .trim()
-      .replace(/^@/, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9_.-]/g, '_');
+      .replace(/^@/, '');
 
     if (!cleanStoreName) {
       return { success: false, error: 'Por favor escribe el nombre de tu tienda.' };
@@ -530,8 +528,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ? payload.ownerUsername
               .trim()
               .replace(/^@/, '')
-              .toLowerCase()
-              .replace(/[^a-z0-9_.-]/g, '_')
           : profile.username || currentMeta.username;
 
       if (payload.ownerUsername !== undefined) {

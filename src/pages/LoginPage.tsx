@@ -14,22 +14,16 @@ import {
   ShieldCheck,
   KeyRound,
   AtSign,
-  RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { TEST_ACCOUNT_PRESETS, OFFICIAL_WHATSAPP_NUMBER } from '../data/realInventoryData';
-import { TestAccountPreset } from '../types';
-import { supabaseAdmin } from '../lib/supabase';
 
 export const LoginPage: React.FC = () => {
-  const [identifier, setIdentifier] = useState('dueno_pro');
-  const [password, setPassword] = useState('demo2026');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [liveUserMap, setLiveUserMap] = useState<
-    Record<string, { username: string; full_name: string; store_name?: string; onboarding_completed?: boolean }>
-  >({});
 
   const { signIn, user, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -39,35 +33,6 @@ export const LoginPage: React.FC = () => {
       navigate('/app', { replace: true });
     }
   }, [user, isLoading, navigate]);
-
-  // Load live usernames and store names from Supabase Auth so cards show real database values
-  useEffect(() => {
-    let active = true;
-    supabaseAdmin.auth.admin
-      .listUsers({ page: 1, perPage: 100 })
-      .then(({ data }) => {
-        if (!active || !data?.users) return;
-        const map: Record<
-          string,
-          { username: string; full_name: string; store_name?: string; onboarding_completed?: boolean }
-        > = {};
-        data.users.forEach((u) => {
-          if (u.email) {
-            map[u.email.toLowerCase()] = {
-              username: u.user_metadata?.username || u.email.split('@')[0],
-              full_name: u.user_metadata?.full_name || '',
-              store_name: u.user_metadata?.store_name,
-              onboarding_completed: Boolean(u.user_metadata?.onboarding_completed),
-            };
-          }
-        });
-        setLiveUserMap(map);
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,46 +51,6 @@ export const LoginPage: React.FC = () => {
       setErrorMessage(res.error || 'Ocurrió un error al iniciar sesión.');
     } else {
       navigate('/app');
-    }
-  };
-
-  const handleDirectAccountLogin = async (
-    preset: TestAccountPreset,
-    forceFirstLoginOnboarding = false
-  ) => {
-    setErrorMessage(null);
-    setIsSubmitting(true);
-
-    try {
-      if (forceFirstLoginOnboarding && preset.role === 'global_owner') {
-        const { data } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 100 });
-        const target = data?.users?.find(
-          (u) => u.email?.toLowerCase() === preset.email.toLowerCase()
-        );
-        if (target) {
-          await supabaseAdmin.auth.admin.updateUserById(target.id, {
-            user_metadata: {
-              ...(target.user_metadata || {}),
-              onboarding_completed: false,
-            },
-          });
-        }
-      }
-
-      const res = await signIn(preset.email, preset.password);
-      setIsSubmitting(false);
-
-      if (!res.success) {
-        setIdentifier(liveUserMap[preset.email.toLowerCase()]?.username || preset.username || preset.email);
-        setErrorMessage(
-          'Si cambiaste la contraseña de esta cuenta desde el panel de Dueño, escríbela en el formulario izquierdo para entrar.'
-        );
-      } else {
-        navigate('/app');
-      }
-    } catch (err: any) {
-      setIsSubmitting(false);
-      setErrorMessage(err?.message || 'Error al iniciar sesión.');
     }
   };
 
@@ -165,7 +90,7 @@ export const LoginPage: React.FC = () => {
           </h1>
           <p className="mt-1.5 text-xs sm:text-sm text-deepSlate-500 max-w-xl mx-auto">
             Ingresa con tu <strong>nombre de usuario</strong> o <strong>correo electrónico</strong>{' '}
-            conectado directamente a Supabase Auth.
+            asignado a tu cuenta.
           </p>
         </div>
 
@@ -200,10 +125,10 @@ export const LoginPage: React.FC = () => {
                     type="text"
                     autoComplete="username"
                     required
-                    placeholder="ej. dueno_pro o valeria_ventas"
+                    placeholder="Tu usuario o correo electrónico"
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm font-mono rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white text-deepSlate-900 transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white text-deepSlate-900 transition-all"
                   />
                 </div>
               </div>
@@ -258,7 +183,7 @@ export const LoginPage: React.FC = () => {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Conectando con Supabase...</span>
+                      <span>Iniciando sesión...</span>
                     </>
                   ) : (
                     <>
@@ -282,30 +207,28 @@ export const LoginPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Column: Real Supabase Accounts for Testing */}
+          {/* Right Column: Account Type Details */}
           <div className="lg:col-span-7 space-y-4">
             <div className="flex items-center justify-between px-1 flex-wrap gap-2">
               <span className="text-xs font-extrabold uppercase tracking-wider text-deepSlate-700 flex items-center space-x-1.5">
                 <ShieldCheck className="w-4 h-4 text-coral-500" />
-                <span>Cuentas Reales en Base de Datos (Supabase Auth)</span>
+                <span>Detalles de cada Tipo de Cuenta</span>
               </span>
-              <span className="text-[11px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                Conectado a Supabase
+              <span className="text-[11px] font-bold text-deepSlate-600 bg-white px-2.5 py-0.5 rounded-full border border-nacre-200">
+                Planes y Roles del Sistema
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {TEST_ACCOUNT_PRESETS.map((preset) => {
-                const liveInfo = liveUserMap[preset.email.toLowerCase()];
-                const displayUsername = liveInfo?.username || preset.username || preset.email;
                 const isOwnerAccount = preset.role === 'global_owner';
 
                 return (
                   <div
                     key={preset.id}
-                    className="bg-white rounded-3xl border border-nacre-200 p-4 sm:p-5 shadow-sm hover:border-coral-300 transition-all flex flex-col justify-between min-w-0"
+                    className="bg-white rounded-3xl border border-nacre-200 p-5 shadow-sm flex flex-col justify-between min-w-0"
                   >
-                    <div className="space-y-2.5 min-w-0">
+                    <div className="space-y-3 min-w-0">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <span
                           className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
@@ -318,73 +241,26 @@ export const LoginPage: React.FC = () => {
                         >
                           {preset.badge}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIdentifier(displayUsername);
-                            setPassword(preset.password);
-                          }}
-                          className="text-[10px] font-bold text-coral-600 hover:underline shrink-0"
-                        >
-                          Rellenar login
-                        </button>
                       </div>
 
-                      <h3 className="text-sm font-extrabold text-deepSlate-900 break-words">{preset.label}</h3>
-                      <p className="text-[11px] text-deepSlate-500 leading-relaxed break-words">
+                      <h3 className="text-sm font-extrabold text-deepSlate-900 break-words">
+                        {preset.label}
+                      </h3>
+                      <p className="text-xs text-deepSlate-500 leading-relaxed break-words">
                         {preset.description}
                       </p>
 
-                      <div className="p-2.5 rounded-xl bg-nacre-50 border border-nacre-200 font-mono text-[11px] space-y-0.5 min-w-0">
-                        <div className="truncate">
-                          <span className="text-deepSlate-400">Usuario: </span>
-                          <strong className="text-deepSlate-900">@{displayUsername}</strong>
-                        </div>
-                        <div className="truncate">
-                          <span className="text-deepSlate-400">Correo: </span>
-                          <span className="text-deepSlate-700">{preset.email}</span>
-                        </div>
-                        <div className="truncate">
-                          <span className="text-deepSlate-400">Clave inicial: </span>
-                          <strong className="text-coral-600">{preset.password}</strong>
-                        </div>
-                      </div>
-
-                      <ul className="space-y-1 pt-1">
+                      <ul className="space-y-1.5 pt-1">
                         {preset.highlights.map((h, i) => (
                           <li
                             key={i}
-                            className="text-[11px] text-deepSlate-600 flex items-start space-x-1.5"
+                            className="text-xs text-deepSlate-600 flex items-start space-x-2"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
                             <span className="break-words">{h}</span>
                           </li>
                         ))}
                       </ul>
-                    </div>
-
-                    <div className="mt-4 space-y-2">
-                      <button
-                        type="button"
-                        disabled={isSubmitting}
-                        onClick={() => handleDirectAccountLogin(preset, false)}
-                        className="w-full min-h-[42px] py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-deepSlate-900 hover:bg-coral-500 transition-colors flex items-center justify-center gap-1.5 text-center disabled:opacity-60"
-                      >
-                        <span className="break-all">Entrar con @{displayUsername}</span>
-                        <ArrowRight className="w-3.5 h-3.5 shrink-0" />
-                      </button>
-
-                      {isOwnerAccount && (
-                        <button
-                          type="button"
-                          disabled={isSubmitting}
-                          onClick={() => handleDirectAccountLogin(preset, true)}
-                          className="w-full min-h-[38px] py-2 px-3 rounded-xl text-[11px] font-bold text-coral-600 bg-coral-50 hover:bg-coral-100 border border-coral-200 transition-colors flex items-center justify-center gap-1.5 text-center leading-tight disabled:opacity-60"
-                        >
-                          <RotateCcw className="w-3 h-3 shrink-0" />
-                          <span>Entrar como 1er inicio de sesión</span>
-                        </button>
-                      )}
                     </div>
                   </div>
                 );

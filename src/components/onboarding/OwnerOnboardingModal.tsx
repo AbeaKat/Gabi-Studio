@@ -505,13 +505,9 @@ export const OwnerOnboardingModal: React.FC = () => {
                     <input
                       type="text"
                       required
-                      placeholder="ej. gabi_duena"
+                      placeholder="ej. Gabi Studio"
                       value={ownerUsername}
-                      onChange={(e) =>
-                        setOwnerUsername(
-                          e.target.value.toLowerCase().replace(/[^a-z0-9_.-]/g, '_')
-                        )
-                      }
+                      onChange={(e) => setOwnerUsername(e.target.value)}
                       className="w-full pl-10 pr-4 py-3 text-sm font-mono font-bold rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white text-deepSlate-900"
                     />
                   </div>

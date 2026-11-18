@@ -52,7 +52,11 @@ export default {
     }
 
     if (env.ASSETS) {
-      return env.ASSETS.fetch(request);
+      const assetRes = await env.ASSETS.fetch(request);
+      if (assetRes.status === 404 && !url.pathname.includes('.')) {
+        return env.ASSETS.fetch(new URL('/index.html', request.url));
+      }
+      return assetRes;
     }
 
     return new Response('Not Found', { status: 404 });

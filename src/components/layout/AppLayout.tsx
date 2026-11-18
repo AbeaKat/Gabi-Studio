@@ -21,6 +21,7 @@ import { useAuth } from '../../context/AuthContext';
 import { OFFICIAL_WHATSAPP_NUMBER } from '../../data/realInventoryData';
 import { NAV_ITEMS, NavItem, PLAN_INFO, UPGRADE_COPY } from '../../lib/navigation';
 import { OwnerOnboardingModal } from '../onboarding/OwnerOnboardingModal';
+import { resolveAvatarUrl } from '../../lib/avatars';
 
 const ICONS = {
   home: Home,
@@ -151,7 +152,7 @@ export const AppLayout: React.FC = () => {
         <div className="p-4 border-b border-nacre-200/80 flex items-center gap-3">
           {profile?.avatar_url ? (
             <img
-              src={profile.avatar_url}
+              src={resolveAvatarUrl(profile.avatar_url)}
               alt={profile.full_name}
               className="w-11 h-11 rounded-2xl object-cover border-2 border-coral-500 shrink-0 bg-white"
             />

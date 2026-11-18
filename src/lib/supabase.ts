@@ -1,5 +1,6 @@
 import { createClient, User } from '@supabase/supabase-js';
 import { PlanTier, Profile, Tenant, ThemePaletteId, UserRole } from '../types';
+import { normalizeImageFileToPngBuffer, resolveAvatarUrl } from './avatars';
 
 const supabaseUrl =
   import.meta.env.VITE_SUPABASE_URL || 'https://ezyqmcrmekiqbkztbcvn.supabase.co';
@@ -7,10 +8,11 @@ const supabaseAnonKey =
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   'sb_publishable_2gBXhIVPOusesttjO77pzA_lJFMGMLu';
-const supabaseServiceKey =
-  import.meta.env.SUPABASE_SECRET_KEY ||
-  import.meta.env.SUPABASE_SERVICE_ROLE_KEY ||
-  supabaseAnonKey;
+
+const adminProxyUrl =
+  typeof window !== 'undefined' && window.location?.origin
+    ? `${window.location.origin}/supabase-admin`
+    : supabaseUrl;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -19,7 +21,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+export const supabaseAdmin = createClient(adminProxyUrl, supabaseAnonKey, {
   auth: {
     persistSession: false,
     autoRefreshToken: false,
@@ -40,7 +42,7 @@ export function mapAuthUserToProfile(u: User, fallbackTenantId: string): Profile
     full_name: meta.full_name || u.email?.split('@')[0] || 'Usuario',
     username: defaultUsername,
     email: u.email || '',
-    avatar_url: meta.avatar_url || '',
+    avatar_url: resolveAvatarUrl(meta.avatar_url || ''),
     onboarding_completed:
       role === 'seller' ? true : Boolean(meta.onboarding_completed),
     role,
@@ -100,33 +102,35 @@ export async function resolveLoginIdentifierToEmail(
 }
 
 /**
- * Uploads a profile picture or store logo directly to the public 'avatars' bucket in Supabase Storage.
+ * Uploads a profile picture or store logo directly to the public 'avatars' bucket in Supabase Storage
+ * and returns a same-origin URL that renders reliably in all browsers.
  */
 export async function uploadAvatarToSupabase(
   userId: string,
   file: File
 ): Promise<{ url?: string; error?: string }> {
   try {
-    const ext = (file.name.split('.').pop() || 'png').toLowerCase();
-    const safeExt = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext)
-      ? ext
-      : 'png';
-    const filePath = `${userId}/avatar-${Date.now()}.${safeExt}`;
+    const { buffer, contentType, ext } = await normalizeImageFileToPngBuffer(file);
+    const filePath = `${userId}/avatar-${Date.now()}.${ext}`;
 
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from('avatars')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: true,
-        contentType: file.type || `image/${safeExt}`,
-      });
+    const uploadRes = await fetch(`/supabase-admin/storage/v1/object/avatars/${filePath}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': contentType,
+        'x-upsert': 'true',
+        'cache-control': 'max-age=3600',
+      },
+      body: buffer,
+    });
 
-    if (uploadError) {
-      return { error: uploadError.message };
+    if (!uploadRes.ok) {
+      const errText = await uploadRes.text();
+      return { error: `Error al subir imagen (${uploadRes.status}): ${errText}` };
     }
 
-    const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-    return { url: data.publicUrl };
+    return {
+      url: `/supabase-admin/storage/v1/object/public/avatars/${filePath}`,
+    };
   } catch (err: any) {
     return { error: err?.message || 'No se pudo subir la imagen a Supabase Storage.' };
   }
@@ -210,6 +214,7 @@ export async function fetchCloudTenantConfig(
 
 /**
  * Saves the shared tenant configuration to Supabase Cloud (Storage + Postgres table if present).
+ * Seat limits and plan_tier are strictly read-only from the database and cannot be altered by the client.
  */
 export async function saveCloudTenantConfig(
   tenantId: string,
@@ -217,7 +222,14 @@ export async function saveCloudTenantConfig(
 ): Promise<void> {
   try {
     const current = await fetchCloudTenantConfig(tenantId, config);
-    const merged: Tenant = { ...current, ...config, id: tenantId };
+    const merged: Tenant = {
+      ...current,
+      name: config.name ?? current.name,
+      exchange_rate_nio: config.exchange_rate_nio ?? current.exchange_rate_nio,
+      theme_palette: config.theme_palette ?? current.theme_palette,
+      onboarding_completed: config.onboarding_completed ?? current.onboarding_completed,
+      id: tenantId,
+    };
     const blob = new Blob([JSON.stringify(merged, null, 2)], {
       type: 'application/json',
     });
@@ -235,27 +247,26 @@ export async function saveCloudTenantConfig(
   try {
     await supabaseAdmin
       .from('tenants')
-      .upsert(
-        {
-          id: tenantId,
-          name: config.name,
-          plan_tier: config.plan_tier,
-          exchange_rate_nio: config.exchange_rate_nio,
-          extra_paid_profiles: config.extra_paid_profiles,
-          theme_palette: config.theme_palette,
-          onboarding_completed: config.onboarding_completed,
-        },
-        { onConflict: 'id' }
-      );
+      .update({
+        name: config.name,
+        exchange_rate_nio: config.exchange_rate_nio,
+        theme_palette: config.theme_palette,
+        onboarding_completed: config.onboarding_completed,
+      })
+      .eq('id', tenantId);
   } catch {
     // Ignore if table not created
   }
 }
 
 /**
- * Lists all real user accounts (Owner + associated Employees) belonging to a tenant in Supabase Auth.
+ * Lists all real user accounts (Owner + associated Employees) belonging to a tenant in Supabase Auth,
+ * strictly respecting the database-assigned employee quota (maxSellersAllowed).
  */
-export async function listTenantTeamProfiles(tenantId: string): Promise<Profile[]> {
+export async function listTenantTeamProfiles(
+  tenantId: string,
+  maxSellersAllowed?: number
+): Promise<Profile[]> {
   try {
     const { data, error } = await supabaseAdmin.auth.admin.listUsers({
       page: 1,
@@ -263,17 +274,24 @@ export async function listTenantTeamProfiles(tenantId: string): Promise<Profile[
     });
     if (error || !data?.users) return [];
 
-    const matching = data.users.filter(
-      (u) => (u.user_metadata?.tenant_id || '00000000-0000-0000-0000-000000000001') === tenantId
-    );
+    const matching = data.users
+      .filter(
+        (u) =>
+          (u.user_metadata?.tenant_id || '00000000-0000-0000-0000-000000000001') === tenantId
+      )
+      .map((u) => mapAuthUserToProfile(u, tenantId));
 
-    return matching
-      .map((u) => mapAuthUserToProfile(u, tenantId))
-      .sort((a, b) => {
-        if (a.role === 'global_owner' && b.role !== 'global_owner') return -1;
-        if (a.role !== 'global_owner' && b.role === 'global_owner') return 1;
-        return a.full_name.localeCompare(b.full_name);
-      });
+    const owners = matching.filter((p) => p.role === 'global_owner');
+    const sellers = matching
+      .filter((p) => p.role === 'seller')
+      .sort((a, b) => a.created_at.localeCompare(b.created_at));
+
+    const limitedSellers =
+      typeof maxSellersAllowed === 'number'
+        ? sellers.slice(0, Math.max(0, maxSellersAllowed))
+        : sellers;
+
+    return [...owners, ...limitedSellers];
   } catch {
     return [];
   }
@@ -423,9 +441,9 @@ export async function updateEmployeeInSupabase(
 }
 
 /**
- * Creates a new associated Employee ('seller') account in Supabase Auth for the given tenant.
+ * Employee creation from the client is strictly forbidden; employee accounts are provisioned only in the database.
  */
-export async function createEmployeeInSupabase(params: {
+export async function createEmployeeInSupabase(_params: {
   tenantId: string;
   planTier: PlanTier;
   full_name: string;
@@ -433,104 +451,22 @@ export async function createEmployeeInSupabase(params: {
   password: string;
   email?: string;
 }): Promise<{ success: boolean; profile?: Profile; error?: string }> {
-  try {
-    const cleanUsername = params.username
-      .trim()
-      .replace(/^@/, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9_.-]/g, '_');
-
-    if (!cleanUsername || cleanUsername.length < 3) {
-      return {
-        success: false,
-        error: 'El nombre de usuario del empleado debe tener al menos 3 caracteres.',
-      };
-    }
-
-    if (!params.password || params.password.trim().length < 6) {
-      return {
-        success: false,
-        error: 'La contraseña del empleado debe tener al menos 6 caracteres.',
-      };
-    }
-
-    const taken = await isUsernameTaken(cleanUsername);
-    if (taken) {
-      return {
-        success: false,
-        error: `El nombre de usuario "@${cleanUsername}" ya está registrado. Elige otro.`,
-      };
-    }
-
-    const email =
-      params.email && params.email.includes('@')
-        ? params.email.trim().toLowerCase()
-        : `${cleanUsername}@tienda.gabistudio.local`;
-
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password: params.password.trim(),
-      email_confirm: true,
-      user_metadata: {
-        tenant_id: params.tenantId,
-        role: 'seller',
-        plan_tier: params.planTier,
-        full_name: params.full_name.trim() || cleanUsername,
-        username: cleanUsername,
-        avatar_url: '',
-        onboarding_completed: true,
-      },
-    });
-
-    if (error || !data?.user) {
-      return {
-        success: false,
-        error: error?.message || 'No se pudo crear la cuenta del empleado en Supabase.',
-      };
-    }
-
-    try {
-      await supabaseAdmin.from('profiles').upsert({
-        id: data.user.id,
-        tenant_id: params.tenantId,
-        full_name: params.full_name.trim() || cleanUsername,
-        username: cleanUsername,
-        role: 'seller',
-      });
-    } catch {
-      // Ignore if table not migrated
-    }
-
-    return {
-      success: true,
-      profile: mapAuthUserToProfile(data.user, params.tenantId),
-    };
-  } catch (err: any) {
-    return {
-      success: false,
-      error: err?.message || 'Error al crear la cuenta de empleado.',
-    };
-  }
+  return {
+    success: false,
+    error:
+      'No puedes crear más cuentas de empleado desde la aplicación. La asignación de cuentas de empleado se maneja exclusivamente desde la base de datos.',
+  };
 }
 
 /**
- * Deletes an Employee ('seller') account from Supabase Auth.
+ * Employee deletion from the client is strictly forbidden; employee accounts are managed only in the database.
  */
 export async function deleteEmployeeInSupabase(
-  employeeId: string
+  _employeeId: string
 ): Promise<{ success: boolean; error?: string }> {
-  try {
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(employeeId);
-    if (error) {
-      return { success: false, error: error.message };
-    }
-    try {
-      await supabaseAdmin.from('profiles').delete().eq('id', employeeId);
-    } catch {
-      // Ignore
-    }
-    return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err?.message || 'No se pudo eliminar la cuenta.' };
-  }
+  return {
+    success: false,
+    error:
+      'Las cuentas de empleado asignadas solo pueden darse de alta o baja desde la base de datos.',
+  };
 }

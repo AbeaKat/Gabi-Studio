@@ -289,22 +289,42 @@ CREATE POLICY "Users can read own tenant"
     ON public.tenants FOR SELECT
     USING (id = public.current_user_tenant_id());
 
+-- El dueño solo puede actualizar nombre, tasa de cambio y tema de su tienda,
+-- NUNCA su plan_tier ni los límites de cuentas (max_owner_profiles, max_seller_profiles, extra_paid_profiles)
+CREATE OR REPLACE FUNCTION public.protect_tenant_seat_limits()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF auth.uid() IS NOT NULL THEN
+        NEW.plan_tier := OLD.plan_tier;
+        NEW.max_owner_profiles := OLD.max_owner_profiles;
+        NEW.max_seller_profiles := OLD.max_seller_profiles;
+        NEW.extra_paid_profiles := OLD.extra_paid_profiles;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_protect_tenant_seat_limits ON public.tenants;
+CREATE TRIGGER tr_protect_tenant_seat_limits
+BEFORE UPDATE ON public.tenants
+FOR EACH ROW
+EXECUTE FUNCTION public.protect_tenant_seat_limits();
+
 CREATE POLICY "Owners can update own tenant settings"
     ON public.tenants FOR UPDATE
     USING (id = public.current_user_tenant_id() AND public.current_user_role() = 'global_owner');
 
--- Políticas para PROFILES
+-- Políticas para PROFILES (Las cuentas se crean únicamente desde base de datos / administración)
 CREATE POLICY "Users can view members in same tenant"
     ON public.profiles FOR SELECT
     USING (tenant_id = public.current_user_tenant_id());
 
-CREATE POLICY "Users can update their own profile"
+CREATE POLICY "Owners can update profiles in their tenant"
     ON public.profiles FOR UPDATE
-    USING (id = auth.uid());
-
-CREATE POLICY "Owners can insert new profiles in their tenant"
-    ON public.profiles FOR INSERT
-    WITH CHECK (tenant_id = public.current_user_tenant_id() AND public.current_user_role() = 'global_owner');
+    USING (
+        (id = auth.uid() AND public.current_user_role() = 'global_owner')
+        OR (tenant_id = public.current_user_tenant_id() AND public.current_user_role() = 'global_owner')
+    );
 
 -- Políticas para BATCHES
 CREATE POLICY "Tenant isolation for batches SELECT"

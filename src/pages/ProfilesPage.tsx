@@ -2,11 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Users,
-  UserPlus,
   EyeOff,
   Eye,
-  Plus,
-  Trash2,
   AlertCircle,
   CheckCircle2,
   Sparkles,
@@ -23,20 +20,13 @@ import {
   Lock,
   Save,
   UserCircle2,
+  Database,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { PlanTier, Profile, ThemePaletteId } from '../types';
 import { PLAN_INFO } from '../lib/navigation';
 import { THEME_PALETTE_LIST, applyThemePalette } from '../lib/themes';
-import { ConfirmDialog } from '../components/shared/ConfirmDialog';
-
-const PRESET_AVATARS = [
-  'https://api.dicebear.com/7.x/Notionists/svg?seed=GabiOwner&backgroundColor=ffdfbf',
-  'https://api.dicebear.com/7.x/Notionists/svg?seed=Executive1&backgroundColor=ffd5dc',
-  'https://api.dicebear.com/7.x/Notionists/svg?seed=StoreBoss&backgroundColor=c0aede',
-  'https://api.dicebear.com/7.x/Notionists/svg?seed=CommercePro&backgroundColor=d1d4f9',
-  'https://api.dicebear.com/7.x/Notionists/svg?seed=NicaStore&backgroundColor=b6e3f4',
-];
+import { PRESET_AVATARS, resolveAvatarUrl } from '../lib/avatars';
 
 const PLAN_FEATURES: Record<PlanTier, { people: string; bullets: string[] }> = {
   1: {
@@ -75,12 +65,9 @@ export const ProfilesPage: React.FC = () => {
     planTier,
     role,
     teamMembers,
-    updateTenantConfig,
     updateStoreAndOwnerProfile,
     uploadProfilePhoto,
     updateEmployeeAccount,
-    createEmployeeAccount,
-    deleteEmployeeAccount,
     openOnboardingModal,
     resetOwnerOnboardingForTest,
   } = useAuth();
@@ -100,20 +87,13 @@ export const ProfilesPage: React.FC = () => {
   const [isSavingOwner, setIsSavingOwner] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
-  // Estado de edición por empleado
+  // Estado de edición por empleado asignado en base de datos
   const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
   const [empFullName, setEmpFullName] = useState('');
   const [empUsername, setEmpUsername] = useState('');
   const [empNewPassword, setEmpNewPassword] = useState('');
   const [showEmpPassword, setShowEmpPassword] = useState(false);
   const [isSavingEmployee, setIsSavingEmployee] = useState(false);
-
-  // Estado para crear nuevo empleado
-  const [newEmpName, setNewEmpName] = useState('');
-  const [newEmpUsername, setNewEmpUsername] = useState('');
-  const [newEmpPassword, setNewEmpPassword] = useState('clave2026');
-  const [showNewEmpPass, setShowNewEmpPass] = useState(false);
-  const [isCreatingEmp, setIsCreatingEmp] = useState(false);
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -123,8 +103,6 @@ export const ProfilesPage: React.FC = () => {
     password: string;
   } | null>(null);
 
-  const [employeeToDelete, setEmployeeToDelete] = useState<Profile | null>(null);
-
   useEffect(() => {
     if (tenant) {
       setStoreName(tenant.name || 'Mi Tienda');
@@ -133,7 +111,7 @@ export const ProfilesPage: React.FC = () => {
     if (profile) {
       setOwnerFullName(profile.full_name || '');
       setOwnerUsername(profile.username || '');
-      setOwnerAvatarUrl(profile.avatar_url || '');
+      setOwnerAvatarUrl(resolveAvatarUrl(profile.avatar_url));
     }
   }, [tenant?.name, tenant?.theme_palette, profile?.full_name, profile?.username, profile?.avatar_url]);
 
@@ -186,7 +164,6 @@ export const ProfilesPage: React.FC = () => {
   const maxSellers = tenant?.max_seller_profiles ?? (planTier === 1 ? 0 : planTier === 2 ? 1 : 2);
   const extraPaid = tenant?.extra_paid_profiles ?? 0;
   const allowedSellerSeats = maxSellers + extraPaid;
-  const remainingSellerSeats = Math.max(0, allowedSellerSeats - sellers.length);
 
   const handleThemeSelect = async (themeId: ThemePaletteId) => {
     setSelectedTheme(themeId);
@@ -325,69 +302,6 @@ export const ProfilesPage: React.FC = () => {
     }
   };
 
-  const handleCreateEmployee = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-    setSuccessMsg(null);
-
-    if (sellers.length >= allowedSellerSeats) {
-      setErrorMsg(
-        `Ya ocupaste los ${allowedSellerSeats} espacios de empleado de tu plan. Agrega un espacio extra para crear otra cuenta.`
-      );
-      return;
-    }
-
-    if (!newEmpName.trim()) {
-      setErrorMsg('Escribe el nombre completo de tu empleado.');
-      return;
-    }
-
-    const cleanUser = newEmpUsername.trim().replace(/^@/, '');
-    if (!cleanUser || cleanUser.length < 3) {
-      setErrorMsg('Escribe un nombre de usuario de al menos 3 caracteres para el empleado.');
-      return;
-    }
-
-    if (!newEmpPassword || newEmpPassword.trim().length < 6) {
-      setErrorMsg('La contraseña del empleado debe tener al menos 6 caracteres.');
-      return;
-    }
-
-    setIsCreatingEmp(true);
-    const res = await createEmployeeAccount({
-      full_name: newEmpName.trim(),
-      username: cleanUser,
-      password: newEmpPassword.trim(),
-    });
-    setIsCreatingEmp(false);
-
-    if (!res.success) {
-      setErrorMsg(res.error || 'No se pudo crear la cuenta del empleado.');
-    } else {
-      setCredentialsBox({
-        title: `Nueva cuenta de empleado creada: ${newEmpName.trim()}`,
-        username: cleanUser,
-        password: newEmpPassword.trim(),
-      });
-      setNewEmpName('');
-      setNewEmpUsername('');
-      setNewEmpPassword('clave2026');
-      setSuccessMsg(`Cuenta de empleado @${cleanUser} creada en Supabase Auth.`);
-    }
-  };
-
-  const handleConfirmDeleteEmployee = async () => {
-    if (!employeeToDelete) return;
-    setErrorMsg(null);
-    const res = await deleteEmployeeAccount(employeeToDelete.id);
-    if (!res.success) {
-      setErrorMsg(res.error || 'No se pudo eliminar la cuenta del empleado.');
-    } else {
-      setSuccessMsg(`Se eliminó la cuenta de empleado "${employeeToDelete.full_name}".`);
-    }
-    setEmployeeToDelete(null);
-  };
-
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-6xl mx-auto">
       {/* Encabezado */}
@@ -520,8 +434,9 @@ export const ProfilesPage: React.FC = () => {
             <div className="relative shrink-0">
               {ownerAvatarUrl ? (
                 <img
-                  src={ownerAvatarUrl}
+                  src={resolveAvatarUrl(ownerAvatarUrl)}
                   alt={ownerFullName}
+                  onError={() => setOwnerAvatarUrl('')}
                   className="w-16 h-16 rounded-2xl object-cover border-2 border-coral-500 bg-white"
                 />
               ) : (
@@ -788,12 +703,15 @@ export const ProfilesPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Cupos de empleados */}
-            <div className="p-4 rounded-2xl bg-nacre-50 border border-nacre-200 space-y-3">
+            {/* Cupos de empleados controlados exclusivamente por Base de Datos */}
+            <div className="p-4 rounded-2xl bg-nacre-50 border border-nacre-200 space-y-2.5">
               <div className="flex items-center justify-between text-sm">
-                <span className="font-bold text-deepSlate-700">Cuentas de empleado</span>
+                <span className="font-bold text-deepSlate-700 flex items-center gap-1.5">
+                  <Database className="w-4 h-4 text-coral-500" />
+                  <span>Cuentas asignadas</span>
+                </span>
                 <span className="font-extrabold text-deepSlate-900">
-                  {sellers.length} de {allowedSellerSeats} activas
+                  {sellers.length} de {allowedSellerSeats} en BD
                 </span>
               </div>
               <div className="w-full h-2.5 rounded-full bg-nacre-200 overflow-hidden">
@@ -808,29 +726,21 @@ export const ProfilesPage: React.FC = () => {
                   }}
                 />
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  updateTenantConfig({ extra_paid_profiles: extraPaid + 1 });
-                  setSuccessMsg('Se habilitó 1 cupo adicional de empleado en tu tienda.');
-                }}
-                className="w-full min-h-[44px] px-4 rounded-xl text-xs font-bold bg-white hover:bg-coral-50 text-coral-700 border border-coral-200 inline-flex items-center justify-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Habilitar 1 espacio extra de empleado</span>
-              </button>
+              <p className="text-[11px] text-deepSlate-500 leading-relaxed">
+                El número de cuentas de empleado asignadas a tu tienda está definido en la base de datos según tu plan. No es posible crear cuentas adicionales desde aquí.
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Columna derecha: Lista de empleados y gestión de usuario/contraseña */}
+        {/* Columna derecha: Lista de empleados asignados y gestión de usuario/contraseña */}
         <div className="lg:col-span-7 bg-white rounded-3xl border border-nacre-200 p-6 space-y-6">
           <div>
             <h2 className="text-lg font-extrabold text-deepSlate-900">
-              Administrar Empleados ({sellers.length})
+              Cuentas de Empleado Asignadas ({sellers.length})
             </h2>
             <p className="text-xs text-deepSlate-500">
-              Configura el nombre de usuario, cambia o reinicia la contraseña de las cuentas de empleado asociadas.
+              Configura el nombre de usuario, cambia o reinicia la contraseña de las cuentas de empleado asignadas a tu tienda en la base de datos.
             </p>
           </div>
 
@@ -839,10 +749,10 @@ export const ProfilesPage: React.FC = () => {
             <div className="p-6 text-center rounded-2xl border border-nacre-200 bg-nacre-50/50 space-y-1.5">
               <Users className="w-7 h-7 text-deepSlate-400 mx-auto" />
               <p className="text-sm font-extrabold text-deepSlate-900">
-                No tienes cuentas de empleado asociadas todavía
+                Tu cuenta no tiene cuentas de empleado asignadas
               </p>
               <p className="text-xs text-deepSlate-500">
-                Usa el formulario de abajo para crear una cuenta de empleado vinculada a tu tienda.
+                Las cuentas de empleado se habilitan y asignan directamente desde la base de datos según tu plan contratado.
               </p>
             </div>
           ) : (
@@ -883,7 +793,7 @@ export const ProfilesPage: React.FC = () => {
                           className="px-3 py-2 rounded-xl text-xs font-bold bg-white hover:bg-coral-50 text-deepSlate-800 border border-nacre-200 inline-flex items-center gap-1.5"
                         >
                           <KeyRound className="w-3.5 h-3.5 text-coral-500" />
-                          <span>{isEditing ? 'Cancelar' : 'Editar usuario / clave'}</span>
+                          <span>{isEditing ? 'Cancelar' : 'Configurar usuario / clave'}</span>
                         </button>
 
                         <button
@@ -895,15 +805,6 @@ export const ProfilesPage: React.FC = () => {
                         >
                           <RotateCcw className="w-3.5 h-3.5" />
                           <span>Reiniciar clave</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setEmployeeToDelete(emp)}
-                          className="p-2 rounded-xl text-deepSlate-400 hover:text-rose-600 hover:bg-rose-50"
-                          title="Eliminar cuenta de empleado"
-                        >
-                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -990,80 +891,6 @@ export const ProfilesPage: React.FC = () => {
               })}
             </div>
           )}
-
-          {/* Formulario para crear nueva cuenta de empleado */}
-          <form
-            onSubmit={handleCreateEmployee}
-            className="p-4 rounded-2xl bg-nacre-50 border border-nacre-200 space-y-3"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-extrabold uppercase tracking-wider text-deepSlate-700">
-                Crear nueva cuenta de empleado asociada
-              </p>
-              <span className="text-[11px] font-semibold text-deepSlate-500">
-                {remainingSellerSeats} {remainingSellerSeats === 1 ? 'cupo libre' : 'cupos libres'}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <input
-                type="text"
-                placeholder="Nombre (ej. Andrea Caja)"
-                value={newEmpName}
-                onChange={(e) => setNewEmpName(e.target.value)}
-                className="px-3.5 py-2.5 text-xs font-bold rounded-xl bg-white border border-nacre-200 focus:outline-none focus:border-coral-500"
-              />
-              <div className="relative">
-                <AtSign className="w-3.5 h-3.5 text-coral-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="usuario_empleado"
-                  value={newEmpUsername}
-                  onChange={(e) =>
-                    setNewEmpUsername(
-                      e.target.value.toLowerCase().replace(/[^a-z0-9_.-]/g, '_')
-                    )
-                  }
-                  className="w-full pl-8 pr-3 py-2.5 text-xs font-mono font-bold rounded-xl bg-white border border-nacre-200 focus:outline-none focus:border-coral-500"
-                />
-              </div>
-              <div className="relative">
-                <input
-                  type={showNewEmpPass ? 'text' : 'password'}
-                  placeholder="Contraseña"
-                  value={newEmpPassword}
-                  onChange={(e) => setNewEmpPassword(e.target.value)}
-                  className="w-full pl-3.5 pr-8 py-2.5 text-xs font-mono rounded-xl bg-white border border-nacre-200 focus:outline-none focus:border-coral-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNewEmpPass(!showNewEmpPass)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-deepSlate-400"
-                >
-                  {showNewEmpPass ? (
-                    <EyeOff className="w-3.5 h-3.5" />
-                  ) : (
-                    <Eye className="w-3.5 h-3.5" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={isCreatingEmp}
-                className="min-h-[42px] px-5 rounded-xl text-xs font-bold text-white bg-coral-500 hover:bg-coral-600 inline-flex items-center gap-2 disabled:opacity-60"
-              >
-                {isCreatingEmp ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <UserPlus className="w-4 h-4" />
-                )}
-                <span>Crear cuenta de empleado</span>
-              </button>
-            </div>
-          </form>
         </div>
       </section>
 
@@ -1131,21 +958,6 @@ export const ProfilesPage: React.FC = () => {
           })}
         </div>
       </section>
-
-      <ConfirmDialog
-        isOpen={!!employeeToDelete}
-        title="¿Eliminar cuenta de empleado?"
-        message={
-          <>
-            Vas a eliminar la cuenta de acceso de <strong>{employeeToDelete?.full_name}</strong> (@
-            {employeeToDelete?.username}) de tu tienda.
-          </>
-        }
-        confirmLabel="Sí, eliminar cuenta"
-        cancelLabel="Cancelar"
-        onCancel={() => setEmployeeToDelete(null)}
-        onConfirm={handleConfirmDeleteEmployee}
-      />
     </div>
   );
 };

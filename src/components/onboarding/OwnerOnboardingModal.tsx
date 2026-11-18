@@ -22,14 +22,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { THEME_PALETTE_LIST, applyThemePalette, ThemePaletteId } from '../../lib/themes';
 import { PLAN_INFO } from '../../lib/navigation';
-
-const PRESET_AVATARS = [
-  'https://api.dicebear.com/7.x/Notionists/svg?seed=GabiOwner&backgroundColor=ffdfbf',
-  'https://api.dicebear.com/7.x/Notionists/svg?seed=Executive1&backgroundColor=ffd5dc',
-  'https://api.dicebear.com/7.x/Notionists/svg?seed=StoreBoss&backgroundColor=c0aede',
-  'https://api.dicebear.com/7.x/Notionists/svg?seed=CommercePro&backgroundColor=d1d4f9',
-  'https://api.dicebear.com/7.x/Notionists/svg?seed=NicaStore&backgroundColor=b6e3f4',
-];
+import { PRESET_AVATARS, resolveAvatarUrl } from '../../lib/avatars';
 
 interface EditableEmployee {
   id: string;
@@ -85,21 +78,27 @@ export const OwnerOnboardingModal: React.FC = () => {
       setExchangeRate(String(tenant.exchange_rate_nio || 36.62));
       setOwnerFullName(profile.full_name || '');
       setOwnerUsername(profile.username || '');
-      setOwnerAvatarUrl(profile.avatar_url || '');
-      setEmployees(
-        associatedSellers.map((emp) => ({
+      setOwnerAvatarUrl(resolveAvatarUrl(profile.avatar_url));
+      setStep(1);
+      setErrorMsg(null);
+    }
+  }, [isOnboardingOpen]);
+
+  useEffect(() => {
+    if (isOnboardingOpen) {
+      setEmployees((prev) => {
+        if (prev.length > 0 && prev.length === associatedSellers.length) return prev;
+        return associatedSellers.map((emp) => ({
           id: emp.id,
           full_name: emp.full_name,
           username: emp.username || emp.email?.split('@')[0] || 'vendedor',
           email: emp.email || '',
           password: '',
           showPassword: false,
-        }))
-      );
-      setStep(1);
-      setErrorMsg(null);
+        }));
+      });
     }
-  }, [isOnboardingOpen, profile?.id, tenant?.id, teamMembers.length]);
+  }, [isOnboardingOpen, associatedSellers.length]);
 
   if (!isOnboardingOpen || role !== 'global_owner') {
     return null;
@@ -410,8 +409,9 @@ export const OwnerOnboardingModal: React.FC = () => {
                 <div className="relative group shrink-0">
                   {ownerAvatarUrl ? (
                     <img
-                      src={ownerAvatarUrl}
+                      src={resolveAvatarUrl(ownerAvatarUrl)}
                       alt={ownerFullName || 'Foto de perfil'}
+                      onError={() => setOwnerAvatarUrl('')}
                       className="w-20 h-20 rounded-2xl object-cover border-2 border-coral-500 shadow-sm bg-white"
                     />
                   ) : (

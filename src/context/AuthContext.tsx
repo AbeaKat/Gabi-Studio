@@ -180,7 +180,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       await hydrateStoreFromSupabaseCloud(loadedTenant.id);
-      const members = await listTenantTeamProfiles(loadedTenant.id);
+      const maxAllowedSellers =
+        (loadedTenant.max_seller_profiles ?? 0) + (loadedTenant.extra_paid_profiles ?? 0);
+      const members = await listTenantTeamProfiles(loadedTenant.id, maxAllowedSellers);
 
       setUser(freshUser);
       setProfile(mappedProfile);
@@ -316,16 +318,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshTeamMembers = async () => {
     const tId = tenant?.id || profile?.tenant_id || TENANT_STELLA_ID;
-    const members = await listTenantTeamProfiles(tId);
+    const maxAllowedSellers =
+      (tenant?.max_seller_profiles ?? 2) + (tenant?.extra_paid_profiles ?? 0);
+    const members = await listTenantTeamProfiles(tId, maxAllowedSellers);
     setTeamMembers(members);
   };
 
   const updateTenantConfig = (updates: Partial<Tenant>) => {
     if (profile?.role === 'seller') return; // Employees cannot change tenant config
+    // Seat limits and plan_tier are managed exclusively in the database
+    const {
+      max_owner_profiles: _mo,
+      max_seller_profiles: _ms,
+      extra_paid_profiles: _ep,
+      plan_tier: _pt,
+      ...safeUpdates
+    } = updates;
     setTenant((prev) => {
-      const next = prev ? { ...prev, ...updates } : { ...DEFAULT_FALLBACK_TENANT, ...updates };
-      if (updates.theme_palette) {
-        applyThemePalette(updates.theme_palette);
+      const next = prev
+        ? { ...prev, ...safeUpdates }
+        : { ...DEFAULT_FALLBACK_TENANT, ...safeUpdates };
+      if (safeUpdates.theme_palette) {
+        applyThemePalette(safeUpdates.theme_palette);
       }
       saveCloudTenantConfig(next.id, next);
       return next;
@@ -352,8 +366,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (user) {
         const meta = user.user_metadata || {};
-        await supabaseAdmin.auth.admin.updateUserById(user.id, {
-          user_metadata: { ...meta, exchange_rate_nio: newRate },
+        await supabase.auth.updateUser({
+          data: { ...meta, exchange_rate_nio: newRate },
         });
       }
 
@@ -437,12 +451,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         onboarding_completed: true,
       };
 
-      const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
-        user_metadata: nextMeta,
+      const { data: updatedAuth, error: updateErr } = await supabase.auth.updateUser({
+        data: nextMeta,
       });
 
       if (updateErr) {
         return { success: false, error: updateErr.message };
+      }
+      if (updatedAuth?.user) {
+        setUser(updatedAuth.user);
       }
 
       const tenantId = tenant?.id || profile.tenant_id || TENANT_STELLA_ID;
@@ -561,19 +578,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         onboarding_completed: true,
       };
 
-      const adminPayload: { user_metadata: Record<string, any>; password?: string } = {
-        user_metadata: nextMeta,
+      const selfUpdatePayload: { data: Record<string, any>; password?: string } = {
+        data: nextMeta,
       };
       if (payload.ownerNewPassword && payload.ownerNewPassword.trim().length >= 6) {
-        adminPayload.password = payload.ownerNewPassword.trim();
+        selfUpdatePayload.password = payload.ownerNewPassword.trim();
       }
 
-      const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(
-        user.id,
-        adminPayload
+      const { data: updatedAuth, error: updateErr } = await supabase.auth.updateUser(
+        selfUpdatePayload
       );
       if (updateErr) {
         return { success: false, error: updateErr.message };
+      }
+      if (updatedAuth?.user) {
+        setUser(updatedAuth.user);
       }
 
       const tenantId = tenant?.id || profile.tenant_id || TENANT_STELLA_ID;
@@ -670,9 +689,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const resetOwnerOnboardingForTest = async () => {
     if (!user || profile?.role === 'seller') return;
     const currentMeta = user.user_metadata || {};
-    await supabaseAdmin.auth.admin.updateUserById(user.id, {
-      user_metadata: { ...currentMeta, onboarding_completed: false },
+    const { data: updatedAuth } = await supabase.auth.updateUser({
+      data: { ...currentMeta, onboarding_completed: false },
     });
+    if (updatedAuth?.user) {
+      setUser(updatedAuth.user);
+    }
     setProfile((prev) => (prev ? { ...prev, onboarding_completed: false } : prev));
     setIsOnboardingOpen(true);
   };

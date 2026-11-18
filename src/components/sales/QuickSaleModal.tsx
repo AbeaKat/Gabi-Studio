@@ -683,7 +683,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({
               {/* 4. Cómo pagó */}
               <section className="space-y-3">
                 <label className={labelCls}>4. ¿Cómo pagó?</label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {PAY_TILES.map((t) => {
                     const Icon = t.icon;
                     const locked = t.id === 'credit_layaway' && !hasCrece;
@@ -701,8 +701,8 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({
                           setErrorMessage(null);
                           setPayChoice(t.id);
                         }}
-                        className={`text-left p-3.5 min-h-[76px] rounded-2xl border-2 transition-all ${
-                          t.id === 'credit_layaway' ? 'col-span-2' : ''
+                        className={`text-left p-3.5 min-h-[72px] rounded-2xl border-2 transition-all min-w-0 ${
+                          t.id === 'credit_layaway' ? 'sm:col-span-2' : ''
                         } ${
                           active
                             ? 'border-coral-500 bg-coral-50'
@@ -711,12 +711,12 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({
                             : 'border-nacre-200 bg-white hover:border-coral-300'
                         }`}
                       >
-                        <span className="flex items-center gap-2 text-base font-extrabold text-deepSlate-900">
-                          <Icon className={`w-5 h-5 ${active ? 'text-coral-600' : 'text-deepSlate-500'}`} />
-                          {t.label}
-                          {locked && <Lock className="w-4 h-4 text-coral-500" />}
+                        <span className="flex items-center gap-2 text-sm sm:text-base font-extrabold text-deepSlate-900">
+                          <Icon className={`w-5 h-5 shrink-0 ${active ? 'text-coral-600' : 'text-deepSlate-500'}`} />
+                          <span className="break-words">{t.label}</span>
+                          {locked && <Lock className="w-4 h-4 text-coral-500 shrink-0" />}
                         </span>
-                        <span className="block text-sm text-deepSlate-500 mt-0.5">
+                        <span className="block text-xs sm:text-sm text-deepSlate-500 mt-0.5">
                           {locked ? 'Disponible en el plan Crece' : t.hint}
                         </span>
                       </button>

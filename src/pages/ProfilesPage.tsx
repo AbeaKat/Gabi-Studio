@@ -120,8 +120,8 @@ export const ProfilesPage: React.FC = () => {
   // ==========================================================================
   if (role === 'seller') {
     return (
-      <div className="p-6 sm:p-10 max-w-xl mx-auto">
-        <div className="bg-white rounded-3xl border border-nacre-200 p-8 text-center space-y-5 shadow-sm">
+      <div className="p-4 sm:p-10 max-w-xl mx-auto w-full min-w-0">
+        <div className="bg-white rounded-3xl border border-nacre-200 p-5 sm:p-8 text-center space-y-5 shadow-sm">
           <div className="w-14 h-14 rounded-2xl bg-coral-50 border border-coral-200 text-coral-600 flex items-center justify-center mx-auto">
             <Lock className="w-7 h-7" />
           </div>
@@ -129,20 +129,20 @@ export const ProfilesPage: React.FC = () => {
             <h1 className="text-xl font-extrabold text-deepSlate-900">
               Configuración exclusiva para el Dueño
             </h1>
-            <p className="text-sm text-deepSlate-500 leading-relaxed">
+            <p className="text-sm text-deepSlate-500 leading-relaxed break-words">
               Tu cuenta de <strong>Empleado (@{profile?.username})</strong> está asociada a{' '}
               <strong>{tenant?.name || 'la tienda'}</strong>. Por seguridad, solo la cuenta del dueño puede
               cambiar el nombre de la tienda, tema de colores, nombres de usuario o contraseñas.
             </p>
           </div>
-          <div className="p-4 rounded-2xl bg-nacre-50 border border-nacre-200 text-left text-xs space-y-1">
+          <div className="p-4 rounded-2xl bg-nacre-50 border border-nacre-200 text-left text-xs space-y-1.5 break-words">
             <div>
               <span className="text-deepSlate-400">Tu nombre: </span>
               <strong className="text-deepSlate-900">{profile?.full_name}</strong>
             </div>
             <div>
               <span className="text-deepSlate-400">Tu usuario: </span>
-              <strong className="font-mono text-deepSlate-900">@{profile?.username}</strong>
+              <strong className="font-mono text-deepSlate-900 break-all">@{profile?.username}</strong>
             </div>
             <div>
               <span className="text-deepSlate-400">Tienda asignada: </span>
@@ -151,7 +151,7 @@ export const ProfilesPage: React.FC = () => {
           </div>
           <Link
             to="/app/closing"
-            className="inline-flex items-center justify-center w-full py-3 px-5 rounded-xl text-sm font-bold text-white bg-coral-500 hover:bg-coral-600 transition-colors"
+            className="inline-flex items-center justify-center w-full min-h-[48px] py-3 px-5 rounded-xl text-sm font-bold text-white bg-coral-500 hover:bg-coral-600 transition-colors"
           >
             Ir a Mis Ventas
           </Link>
@@ -303,16 +303,16 @@ export const ProfilesPage: React.FC = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 max-w-6xl mx-auto w-full min-w-0">
       {/* Encabezado */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="min-w-0">
           <div className="flex items-center gap-2.5 flex-wrap">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-deepSlate-900 tracking-tight">
               Mi tienda y equipo
             </h1>
             <span
-              className={`text-xs font-bold px-3 py-1 rounded-full ${PLAN_INFO[planTier].badgeColor}`}
+              className={`text-xs font-bold px-3 py-1 rounded-full shrink-0 ${PLAN_INFO[planTier].badgeColor}`}
             >
               Plan {PLAN_INFO[planTier].name}
             </span>
@@ -322,77 +322,77 @@ export const ProfilesPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto shrink-0">
           <button
             type="button"
             onClick={openOnboardingModal}
-            className="min-h-[42px] px-4 rounded-xl text-xs sm:text-sm font-bold text-white bg-coral-500 hover:bg-coral-600 shadow-sm inline-flex items-center gap-2"
+            className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-coral-500 hover:bg-coral-600 shadow-sm inline-flex items-center justify-center gap-2 text-center"
           >
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="w-4 h-4 shrink-0" />
             <span>Asistente de personalización</span>
           </button>
           <button
             type="button"
             onClick={resetOwnerOnboardingForTest}
-            className="min-h-[42px] px-3.5 rounded-xl text-xs font-bold text-deepSlate-700 bg-white hover:bg-nacre-100 border border-nacre-200 inline-flex items-center gap-1.5"
+            className="min-h-[44px] px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-deepSlate-700 bg-white hover:bg-nacre-100 border border-nacre-200 inline-flex items-center justify-center gap-1.5 text-center"
             title="Simular el primer inicio de sesión de cuenta dueño"
           >
-            <RotateCcw className="w-3.5 h-3.5 text-coral-500" />
+            <RotateCcw className="w-3.5 h-3.5 text-coral-500 shrink-0" />
             <span>Simular 1er inicio de sesión</span>
           </button>
         </div>
       </div>
 
       {errorMsg && (
-        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-semibold flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
-            <span>{errorMsg}</span>
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-semibold flex items-start sm:items-center justify-between gap-3">
+          <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5 sm:mt-0" />
+            <span className="break-words">{errorMsg}</span>
           </div>
-          <button onClick={() => setErrorMsg(null)} className="text-sm font-bold underline">
+          <button onClick={() => setErrorMsg(null)} className="text-sm font-bold underline shrink-0">
             Cerrar
           </button>
         </div>
       )}
 
       {successMsg && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-sm font-semibold flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-            <span>{successMsg}</span>
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-sm font-semibold flex items-start sm:items-center justify-between gap-3">
+          <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5 sm:mt-0" />
+            <span className="break-words">{successMsg}</span>
           </div>
-          <button onClick={() => setSuccessMsg(null)} className="text-sm font-bold underline">
+          <button onClick={() => setSuccessMsg(null)} className="text-sm font-bold underline shrink-0">
             Cerrar
           </button>
         </div>
       )}
 
       {credentialsBox && (
-        <div className="p-5 rounded-3xl bg-coral-50 border-2 border-coral-500 space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-extrabold text-deepSlate-900 flex items-center gap-2">
-              <KeyRound className="w-4 h-4 text-coral-600" />
-              <span>{credentialsBox.title}</span>
+        <div className="p-4 sm:p-5 rounded-3xl bg-coral-50 border-2 border-coral-500 space-y-3">
+          <div className="flex items-start sm:items-center justify-between gap-2">
+            <h3 className="text-sm font-extrabold text-deepSlate-900 flex items-center gap-2 min-w-0">
+              <KeyRound className="w-4 h-4 text-coral-600 shrink-0" />
+              <span className="break-words">{credentialsBox.title}</span>
             </h3>
             <button
               type="button"
               onClick={() => setCredentialsBox(null)}
-              className="text-xs font-bold text-deepSlate-500 hover:text-deepSlate-900"
+              className="text-xs font-bold text-deepSlate-500 hover:text-deepSlate-900 shrink-0"
             >
               Cerrar
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-3.5 rounded-2xl border border-coral-200 font-mono text-xs">
-            <div>
+            <div className="break-all">
               <span className="text-deepSlate-400">Usuario de acceso: </span>
               <strong className="text-deepSlate-900">@{credentialsBox.username}</strong>
             </div>
-            <div>
+            <div className="break-all">
               <span className="text-deepSlate-400">Contraseña activa: </span>
               <strong className="text-coral-600">{credentialsBox.password}</strong>
             </div>
           </div>
-          <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <p className="text-xs text-deepSlate-600">
               Tu empleado ya puede iniciar sesión en la pantalla de Login con este usuario y contraseña.
             </p>
@@ -404,9 +404,9 @@ export const ProfilesPage: React.FC = () => {
                 );
                 setSuccessMsg('Credenciales copiadas al portapapeles.');
               }}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-deepSlate-900 text-white hover:bg-coral-600 inline-flex items-center gap-1.5"
+              className="min-h-[40px] px-3.5 py-2 rounded-xl text-xs font-bold bg-deepSlate-900 text-white hover:bg-coral-600 inline-flex items-center justify-center gap-1.5 w-full sm:w-auto shrink-0"
             >
-              <Copy className="w-3.5 h-3.5" />
+              <Copy className="w-3.5 h-3.5 shrink-0" />
               <span>Copiar datos de acceso</span>
             </button>
           </div>
@@ -421,16 +421,16 @@ export const ProfilesPage: React.FC = () => {
         className="grid grid-cols-1 lg:grid-cols-12 gap-6"
       >
         {/* Columna izquierda: Foto y Perfil del Dueño */}
-        <div className="lg:col-span-5 bg-white rounded-3xl border border-nacre-200 p-6 space-y-5 shadow-2xs">
+        <div className="lg:col-span-5 bg-white rounded-3xl border border-nacre-200 p-4 sm:p-6 space-y-5 shadow-2xs min-w-0">
           <div className="flex items-center gap-2.5">
-            <UserCircle2 className="w-5 h-5 text-coral-500" />
+            <UserCircle2 className="w-5 h-5 text-coral-500 shrink-0" />
             <h2 className="text-lg font-extrabold text-deepSlate-900">
               Mi perfil de Dueño
             </h2>
           </div>
 
           {/* Foto de perfil */}
-          <div className="p-4 rounded-2xl bg-nacre-50 border border-nacre-200 flex items-center gap-4">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-nacre-50 border border-nacre-200 flex flex-col sm:flex-row items-center gap-4">
             <div className="relative shrink-0">
               {ownerAvatarUrl ? (
                 <img
@@ -448,7 +448,7 @@ export const ProfilesPage: React.FC = () => {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploadingAvatar}
-                className="absolute -bottom-1.5 -right-1.5 p-1.5 rounded-xl bg-deepSlate-900 hover:bg-coral-600 text-white shadow-sm"
+                className="absolute -bottom-1.5 -right-1.5 p-2 rounded-xl bg-deepSlate-900 hover:bg-coral-600 text-white shadow-sm"
                 title="Cambiar foto de perfil"
               >
                 {isUploadingAvatar ? (
@@ -466,13 +466,13 @@ export const ProfilesPage: React.FC = () => {
               />
             </div>
 
-            <div className="space-y-1.5 flex-1 min-w-0">
+            <div className="space-y-2 flex-1 min-w-0 text-center sm:text-left w-full">
               <p className="text-xs font-extrabold text-deepSlate-900">Foto de perfil</p>
-              <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white border border-coral-200 text-coral-600 hover:bg-coral-50"
+                  className="min-h-[34px] px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-coral-200 text-coral-600 hover:bg-coral-50"
                 >
                   Subir foto
                 </button>
@@ -481,7 +481,7 @@ export const ProfilesPage: React.FC = () => {
                     key={idx}
                     type="button"
                     onClick={() => setOwnerAvatarUrl(url)}
-                    className={`w-7 h-7 rounded-lg overflow-hidden border-2 bg-white ${
+                    className={`w-8 h-8 rounded-lg overflow-hidden border-2 bg-white shrink-0 ${
                       ownerAvatarUrl === url ? 'border-coral-500' : 'border-nacre-200'
                     }`}
                   >
@@ -502,7 +502,7 @@ export const ProfilesPage: React.FC = () => {
                 required
                 value={ownerFullName}
                 onChange={(e) => setOwnerFullName(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm font-bold rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white"
+                className="w-full min-h-[44px] px-3.5 py-2.5 text-sm font-bold rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white"
               />
             </div>
 
@@ -521,7 +521,7 @@ export const ProfilesPage: React.FC = () => {
                       e.target.value.toLowerCase().replace(/[^a-z0-9_.-]/g, '_')
                     )
                   }
-                  className="w-full pl-9 pr-3.5 py-2.5 text-sm font-mono font-bold rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white"
+                  className="w-full min-h-[44px] pl-9 pr-3.5 py-2.5 text-sm font-mono font-bold rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white"
                 />
               </div>
             </div>
@@ -537,12 +537,13 @@ export const ProfilesPage: React.FC = () => {
                   placeholder="Dejar en blanco para mantener actual"
                   value={ownerNewPassword}
                   onChange={(e) => setOwnerNewPassword(e.target.value)}
-                  className="w-full pl-9 pr-10 py-2.5 text-xs font-mono rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white"
+                  className="w-full min-h-[44px] pl-9 pr-11 py-2.5 text-xs sm:text-sm font-mono rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white"
                 />
                 <button
                   type="button"
                   onClick={() => setShowOwnerPassword(!showOwnerPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-deepSlate-400"
+                  aria-label={showOwnerPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-lg text-deepSlate-400 hover:text-deepSlate-700"
                 >
                   {showOwnerPassword ? (
                     <EyeOff className="w-4 h-4" />
@@ -556,10 +557,10 @@ export const ProfilesPage: React.FC = () => {
         </div>
 
         {/* Columna derecha: Nombre de la Tienda y Paleta de Colores */}
-        <div className="lg:col-span-7 bg-white rounded-3xl border border-nacre-200 p-6 flex flex-col justify-between space-y-5 shadow-2xs">
+        <div className="lg:col-span-7 bg-white rounded-3xl border border-nacre-200 p-4 sm:p-6 flex flex-col justify-between space-y-5 shadow-2xs min-w-0">
           <div className="space-y-5">
             <div className="flex items-center gap-2.5">
-              <Store className="w-5 h-5 text-coral-500" />
+              <Store className="w-5 h-5 text-coral-500 shrink-0" />
               <h2 className="text-lg font-extrabold text-deepSlate-900">
                 Nombre y Tema de Colores de mi Tienda
               </h2>
@@ -575,14 +576,14 @@ export const ProfilesPage: React.FC = () => {
                 value={storeName}
                 onChange={(e) => setStoreName(e.target.value)}
                 placeholder="Ej. Boutique & Estudio Gabi"
-                className="w-full px-4 py-3 text-base font-extrabold rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white text-deepSlate-900"
+                className="w-full min-h-[48px] px-4 py-3 text-base font-extrabold rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500 focus:bg-white text-deepSlate-900"
               />
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap mb-2.5">
                 <label className="text-xs font-bold text-deepSlate-700 flex items-center gap-1.5">
-                  <Palette className="w-4 h-4 text-coral-500" />
+                  <Palette className="w-4 h-4 text-coral-500 shrink-0" />
                   <span>Tema de paleta de colores</span>
                 </label>
                 <span className="text-[11px] font-semibold text-coral-600">
@@ -590,7 +591,7 @@ export const ProfilesPage: React.FC = () => {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                 {THEME_PALETTE_LIST.map((p) => {
                   const isSelected = selectedTheme === p.id;
                   return (
@@ -598,14 +599,14 @@ export const ProfilesPage: React.FC = () => {
                       key={p.id}
                       type="button"
                       onClick={() => handleThemeSelect(p.id)}
-                      className={`p-3 rounded-2xl border text-left transition-all flex flex-col gap-2 ${
+                      className={`p-3.5 rounded-2xl border text-left transition-all flex flex-col gap-2 min-w-0 ${
                         isSelected
                           ? 'border-2 border-coral-500 bg-coral-50/60 shadow-2xs'
                           : 'border-nacre-200 bg-white hover:border-nacre-300'
                       }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center -space-x-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center -space-x-1 shrink-0">
                           <span
                             className="w-5 h-5 rounded-full border border-white"
                             style={{ backgroundColor: p.primaryHex }}
@@ -620,14 +621,14 @@ export const ProfilesPage: React.FC = () => {
                           />
                         </div>
                         {isSelected && (
-                          <span className="w-4 h-4 rounded-full bg-coral-500 text-white flex items-center justify-center">
-                            <Check className="w-2.5 h-2.5" />
+                          <span className="w-5 h-5 rounded-full bg-coral-500 text-white flex items-center justify-center shrink-0">
+                            <Check className="w-3 h-3" />
                           </span>
                         )}
                       </div>
-                      <div>
-                        <p className="text-xs font-extrabold text-deepSlate-900">{p.name}</p>
-                        <p className="text-[10px] text-deepSlate-500 leading-tight">
+                      <div className="min-w-0">
+                        <p className="text-xs font-extrabold text-deepSlate-900 break-words">{p.name}</p>
+                        <p className="text-[11px] text-deepSlate-500 leading-snug break-words mt-0.5">
                           {p.subtitle}
                         </p>
                       </div>
@@ -642,16 +643,16 @@ export const ProfilesPage: React.FC = () => {
             <button
               type="submit"
               disabled={isSavingOwner}
-              className="min-h-[46px] px-6 rounded-xl text-sm font-bold text-white bg-coral-500 hover:bg-coral-600 shadow-sm inline-flex items-center gap-2 disabled:opacity-60"
+              className="w-full sm:w-auto min-h-[48px] px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-coral-500 hover:bg-coral-600 shadow-sm inline-flex items-center justify-center gap-2 text-center disabled:opacity-60"
             >
               {isSavingOwner ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
                   <span>Guardando en Supabase...</span>
                 </>
               ) : (
                 <>
-                  <Save className="w-4 h-4" />
+                  <Save className="w-4 h-4 shrink-0" />
                   <span>Guardar cambios de tienda y perfil</span>
                 </>
               )}
@@ -665,13 +666,13 @@ export const ProfilesPage: React.FC = () => {
       {/* ==================================================================== */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Columna izquierda: Cupos y permisos */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="bg-white rounded-3xl border border-nacre-200 p-6 space-y-5">
-            <div className="flex items-center gap-3">
+        <div className="lg:col-span-5 space-y-4 min-w-0">
+          <div className="bg-white rounded-3xl border border-nacre-200 p-4 sm:p-6 space-y-5">
+            <div className="flex items-start sm:items-center gap-3">
               <div className="w-11 h-11 rounded-2xl bg-coral-50 border border-coral-200 text-coral-600 flex items-center justify-center shrink-0">
                 <ShieldCheck className="w-6 h-6" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h2 className="text-lg font-extrabold text-deepSlate-900">
                   Cuentas de Empleados Asociadas
                 </h2>
@@ -683,9 +684,9 @@ export const ProfilesPage: React.FC = () => {
 
             <div className="space-y-2.5 text-xs">
               <div className="p-3.5 rounded-2xl bg-coral-50/40 border border-coral-200 space-y-1">
-                <div className="flex items-center gap-2 font-extrabold text-deepSlate-900">
-                  <Eye className="w-4 h-4 text-coral-600" />
-                  <span>Cuenta Dueño (@{profile?.username})</span>
+                <div className="flex items-center gap-2 font-extrabold text-deepSlate-900 flex-wrap">
+                  <Eye className="w-4 h-4 text-coral-600 shrink-0" />
+                  <span className="break-all">Cuenta Dueño (@{profile?.username})</span>
                 </div>
                 <p className="text-deepSlate-600 leading-relaxed">
                   Personaliza la tienda, ve costos y ganancias, y administra usuarios y contraseñas de empleados.
@@ -694,7 +695,7 @@ export const ProfilesPage: React.FC = () => {
 
               <div className="p-3.5 rounded-2xl bg-nacre-50 border border-nacre-200 space-y-1">
                 <div className="flex items-center gap-2 font-extrabold text-deepSlate-900">
-                  <EyeOff className="w-4 h-4 text-deepSlate-600" />
+                  <EyeOff className="w-4 h-4 text-deepSlate-600 shrink-0" />
                   <span>Cuenta Empleado (Vendedor)</span>
                 </div>
                 <p className="text-deepSlate-600 leading-relaxed">
@@ -705,9 +706,9 @@ export const ProfilesPage: React.FC = () => {
 
             {/* Cupos de empleados controlados exclusivamente por Base de Datos */}
             <div className="p-4 rounded-2xl bg-nacre-50 border border-nacre-200 space-y-2.5">
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center justify-between gap-2 flex-wrap text-sm">
                 <span className="font-bold text-deepSlate-700 flex items-center gap-1.5">
-                  <Database className="w-4 h-4 text-coral-500" />
+                  <Database className="w-4 h-4 text-coral-500 shrink-0" />
                   <span>Cuentas asignadas</span>
                 </span>
                 <span className="font-extrabold text-deepSlate-900">
@@ -734,12 +735,12 @@ export const ProfilesPage: React.FC = () => {
         </div>
 
         {/* Columna derecha: Lista de empleados asignados y gestión de usuario/contraseña */}
-        <div className="lg:col-span-7 bg-white rounded-3xl border border-nacre-200 p-6 space-y-6">
+        <div className="lg:col-span-7 bg-white rounded-3xl border border-nacre-200 p-4 sm:p-6 space-y-6 min-w-0">
           <div>
             <h2 className="text-lg font-extrabold text-deepSlate-900">
               Cuentas de Empleado Asignadas ({sellers.length})
             </h2>
-            <p className="text-xs text-deepSlate-500">
+            <p className="text-xs text-deepSlate-500 mt-0.5">
               Configura el nombre de usuario, cambia o reinicia la contraseña de las cuentas de empleado asignadas a tu tienda en la base de datos.
             </p>
           </div>
@@ -762,37 +763,37 @@ export const ProfilesPage: React.FC = () => {
                 return (
                   <div
                     key={emp.id}
-                    className="p-4 rounded-2xl border border-nacre-200 bg-nacre-50/40 space-y-3"
+                    className="p-4 rounded-2xl border border-nacre-200 bg-nacre-50/40 space-y-3 min-w-0"
                   >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
+                      <div className="flex items-start sm:items-center gap-3 min-w-0">
                         <div className="w-10 h-10 rounded-xl bg-coral-50 border border-coral-200 text-coral-600 font-extrabold flex items-center justify-center shrink-0">
                           {(emp.full_name || 'E').charAt(0).toUpperCase()}
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-extrabold text-deepSlate-900 truncate">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-extrabold text-deepSlate-900 break-words">
                             {emp.full_name}
                           </p>
-                          <div className="flex items-center gap-2 flex-wrap text-xs">
-                            <span className="font-mono font-bold text-coral-600">
+                          <div className="flex items-center gap-x-2 gap-y-0.5 flex-wrap text-xs">
+                            <span className="font-mono font-bold text-coral-600 break-all">
                               @{emp.username}
                             </span>
                             {emp.email && (
-                              <span className="text-deepSlate-400 truncate">({emp.email})</span>
+                              <span className="text-deepSlate-400 break-all">({emp.email})</span>
                             )}
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 flex-wrap shrink-0">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
                         <button
                           type="button"
                           onClick={() =>
                             isEditing ? setEditingEmployeeId(null) : startEditingEmployee(emp)
                           }
-                          className="px-3 py-2 rounded-xl text-xs font-bold bg-white hover:bg-coral-50 text-deepSlate-800 border border-nacre-200 inline-flex items-center gap-1.5"
+                          className="min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-bold bg-white hover:bg-coral-50 text-deepSlate-800 border border-nacre-200 inline-flex items-center justify-center gap-1.5 flex-1 sm:flex-initial text-center"
                         >
-                          <KeyRound className="w-3.5 h-3.5 text-coral-500" />
+                          <KeyRound className="w-3.5 h-3.5 text-coral-500 shrink-0" />
                           <span>{isEditing ? 'Cancelar' : 'Configurar usuario / clave'}</span>
                         </button>
 
@@ -800,10 +801,10 @@ export const ProfilesPage: React.FC = () => {
                           type="button"
                           onClick={() => handleResetEmployeePassword(emp)}
                           disabled={isSavingEmployee}
-                          className="px-3 py-2 rounded-xl text-xs font-bold bg-coral-50 hover:bg-coral-100 text-coral-700 border border-coral-200 inline-flex items-center gap-1.5"
+                          className="min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-bold bg-coral-50 hover:bg-coral-100 text-coral-700 border border-coral-200 inline-flex items-center justify-center gap-1.5 flex-1 sm:flex-initial text-center"
                           title="Generar una contraseña temporal nueva para este empleado"
                         >
-                          <RotateCcw className="w-3.5 h-3.5" />
+                          <RotateCcw className="w-3.5 h-3.5 shrink-0" />
                           <span>Reiniciar clave</span>
                         </button>
                       </div>
@@ -812,7 +813,7 @@ export const ProfilesPage: React.FC = () => {
                     {isEditing && (
                       <form
                         onSubmit={handleSaveEmployeeChanges}
-                        className="pt-3 border-t border-nacre-200 grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-3.5 rounded-xl"
+                        className="pt-3 border-t border-nacre-200 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 bg-white p-3.5 rounded-xl"
                       >
                         <div>
                           <label className="block text-[11px] font-bold text-deepSlate-600 mb-1">
@@ -823,7 +824,7 @@ export const ProfilesPage: React.FC = () => {
                             required
                             value={empFullName}
                             onChange={(e) => setEmpFullName(e.target.value)}
-                            className="w-full px-3 py-2 text-xs font-bold rounded-lg bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500"
+                            className="w-full min-h-[42px] px-3 py-2 text-xs font-bold rounded-lg bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500"
                           />
                         </div>
 
@@ -840,11 +841,11 @@ export const ProfilesPage: React.FC = () => {
                                 e.target.value.toLowerCase().replace(/[^a-z0-9_.-]/g, '_')
                               )
                             }
-                            className="w-full px-3 py-2 text-xs font-mono font-bold rounded-lg bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500"
+                            className="w-full min-h-[42px] px-3 py-2 text-xs font-mono font-bold rounded-lg bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500"
                           />
                         </div>
 
-                        <div>
+                        <div className="sm:col-span-2 xl:col-span-1">
                           <label className="block text-[11px] font-bold text-deepSlate-600 mb-1">
                             Nueva contraseña
                           </label>
@@ -854,12 +855,13 @@ export const ProfilesPage: React.FC = () => {
                               placeholder="Opcional (mín. 6)"
                               value={empNewPassword}
                               onChange={(e) => setEmpNewPassword(e.target.value)}
-                              className="w-full pl-3 pr-8 py-2 text-xs font-mono rounded-lg bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500"
+                              className="w-full min-h-[42px] pl-3 pr-9 py-2 text-xs font-mono rounded-lg bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-500"
                             />
                             <button
                               type="button"
                               onClick={() => setShowEmpPassword(!showEmpPassword)}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 text-deepSlate-400"
+                              aria-label={showEmpPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-md text-deepSlate-400 hover:text-deepSlate-700"
                             >
                               {showEmpPassword ? (
                                 <EyeOff className="w-3.5 h-3.5" />
@@ -870,16 +872,16 @@ export const ProfilesPage: React.FC = () => {
                           </div>
                         </div>
 
-                        <div className="sm:col-span-3 flex justify-end gap-2 pt-1">
+                        <div className="sm:col-span-2 xl:col-span-3 flex justify-end gap-2 pt-1">
                           <button
                             type="submit"
                             disabled={isSavingEmployee}
-                            className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-coral-500 hover:bg-coral-600 inline-flex items-center gap-1.5"
+                            className="w-full sm:w-auto min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold text-white bg-coral-500 hover:bg-coral-600 inline-flex items-center justify-center gap-1.5 text-center"
                           >
                             {isSavingEmployee ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
                             ) : (
-                              <Check className="w-3.5 h-3.5" />
+                              <Check className="w-3.5 h-3.5 shrink-0" />
                             )}
                             <span>Guardar cambios del empleado</span>
                           </button>
@@ -905,7 +907,7 @@ export const ProfilesPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {([1, 2, 3] as PlanTier[]).map((tier) => {
             const info = PLAN_INFO[tier];
             const details = PLAN_FEATURES[tier];
@@ -914,14 +916,14 @@ export const ProfilesPage: React.FC = () => {
             return (
               <div
                 key={tier}
-                className={`rounded-3xl p-6 flex flex-col justify-between transition-all ${
+                className={`rounded-3xl p-5 sm:p-6 flex flex-col justify-between transition-all min-w-0 ${
                   isCurrent
                     ? 'bg-coral-50/50 border-2 border-coral-500 shadow-md'
                     : 'bg-white border border-nacre-200'
                 }`}
               >
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
                     <span
                       className={`text-xs font-extrabold uppercase tracking-wider px-3 py-1 rounded-full ${info.badgeColor}`}
                     >
@@ -929,7 +931,7 @@ export const ProfilesPage: React.FC = () => {
                     </span>
                     {isCurrent && (
                       <span className="inline-flex items-center gap-1 text-xs font-extrabold text-white bg-coral-500 px-3 py-1 rounded-full">
-                        <Check className="w-3.5 h-3.5" /> Plan activo
+                        <Check className="w-3.5 h-3.5 shrink-0" /> Plan activo
                       </span>
                     )}
                   </div>
@@ -941,14 +943,14 @@ export const ProfilesPage: React.FC = () => {
 
                   <div className="p-3 rounded-2xl bg-nacre-50 border border-nacre-200 text-sm font-bold text-deepSlate-800 flex items-center gap-2">
                     <Users className="w-4 h-4 text-coral-500 shrink-0" />
-                    <span>Incluye: {details.people}</span>
+                    <span className="break-words">Incluye: {details.people}</span>
                   </div>
 
                   <ul className="space-y-2.5 text-sm text-deepSlate-700">
                     {details.bullets.map((b) => (
                       <li key={b} className="flex items-start gap-2.5">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                        <span>{b}</span>
+                        <span className="break-words">{b}</span>
                       </li>
                     ))}
                   </ul>

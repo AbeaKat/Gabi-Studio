@@ -492,43 +492,43 @@ export const AdvancedSalesTools: React.FC<AdvancedSalesToolsProps> = ({
   return (
     <div className="space-y-5">
       {/* Selector de herramienta avanzada */}
-      <div className="bg-white rounded-2xl border border-nacre-200 p-2 flex flex-wrap gap-2">
+      <div className="bg-white rounded-2xl border border-nacre-200 p-2 flex flex-col sm:flex-row flex-wrap gap-2">
         <button
           type="button"
           onClick={() => setActiveTool('checklist')}
-          className={`flex items-center gap-2 min-h-[44px] px-4 rounded-xl text-sm font-bold transition-all ${
+          className={`flex items-center justify-center sm:justify-start gap-2 min-h-[44px] px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all text-center ${
             activeTool === 'checklist'
               ? 'bg-coral-500 text-white shadow-xs'
               : 'text-deepSlate-700 hover:bg-nacre-50'
           }`}
         >
-          <CheckSquare className="w-4 h-4" />
+          <CheckSquare className="w-4 h-4 shrink-0" />
           <span>Anotar varias ventas de una lista</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTool('excel')}
-          className={`flex items-center gap-2 min-h-[44px] px-4 rounded-xl text-sm font-bold transition-all ${
+          className={`flex items-center justify-center sm:justify-start gap-2 min-h-[44px] px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all text-center ${
             activeTool === 'excel'
               ? 'bg-coral-500 text-white shadow-xs'
               : 'text-deepSlate-700 hover:bg-nacre-50'
           }`}
         >
-          <FileSpreadsheet className="w-4 h-4" />
+          <FileSpreadsheet className="w-4 h-4 shrink-0" />
           <span>Subir ventas desde Excel</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTool('cashbox')}
-          className={`flex items-center gap-2 min-h-[44px] px-4 rounded-xl text-sm font-bold transition-all ${
+          className={`flex items-center justify-center sm:justify-start gap-2 min-h-[44px] px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all text-center ${
             activeTool === 'cashbox'
               ? 'bg-coral-500 text-white shadow-xs'
               : 'text-deepSlate-700 hover:bg-nacre-50'
           }`}
         >
-          <Calculator className="w-4 h-4" />
+          <Calculator className="w-4 h-4 shrink-0" />
           <span>Contar dinero en caja</span>
         </button>
       </div>
@@ -717,7 +717,7 @@ export const AdvancedSalesTools: React.FC<AdvancedSalesToolsProps> = ({
                 <select
                   value={manualPaymentMethod}
                   onChange={(e) => setManualPaymentMethod(e.target.value as PaymentMethod)}
-                  className="min-h-[44px] px-3 py-2 text-sm font-bold rounded-xl bg-white border border-nacre-300 focus:outline-none focus:border-coral-500"
+                  className="w-full sm:w-auto min-h-[44px] px-3 py-2 text-sm font-bold rounded-xl bg-white border border-nacre-300 focus:outline-none focus:border-coral-500"
                 >
                   {PAYMENT_METHOD_OPTIONS.map((opt) => (
                     <option
@@ -741,10 +741,10 @@ export const AdvancedSalesTools: React.FC<AdvancedSalesToolsProps> = ({
                   type="button"
                   disabled={selectedProductIds.length === 0}
                   onClick={handleConfirmManualClosing}
-                  className="min-h-[48px] px-5 py-2.5 rounded-xl text-sm font-extrabold text-white bg-coral-500 hover:bg-coral-600 shadow-md shadow-coral-500/25 disabled:opacity-40 flex items-center gap-2 shrink-0"
+                  className="w-full sm:w-auto min-h-[48px] px-5 py-2.5 rounded-xl text-sm font-extrabold text-white bg-coral-500 hover:bg-coral-600 shadow-md shadow-coral-500/25 disabled:opacity-40 flex items-center justify-center gap-2 text-center"
                 >
                   <span>Guardar ventas seleccionadas ({manualSummary.units})</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4 shrink-0" />
                 </button>
               </div>
             </div>
@@ -980,24 +980,24 @@ export const AdvancedSalesTools: React.FC<AdvancedSalesToolsProps> = ({
               </div>
             </div>
 
-            <div className="rounded-2xl border border-nacre-200 bg-nacre-50/70 p-4 space-y-2">
-              <div className="flex items-center justify-between">
+            <div className="rounded-2xl border border-nacre-200 bg-nacre-50/70 p-4 space-y-2 min-w-0">
+              <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-extrabold text-deepSlate-800">Transferencias</span>
-                <Landmark className="w-5 h-5 text-coral-500" />
+                <Landmark className="w-5 h-5 text-coral-500 shrink-0" />
               </div>
-              <p className="text-xl font-extrabold text-coral-600">{money(totalBankTransfersNio)}</p>
-              <div className="grid grid-cols-3 gap-1 pt-2 border-t border-nacre-200 text-sm text-deepSlate-700">
-                <div>
-                  <span className="font-bold block text-deepSlate-500">BAC</span>
-                  <span>{money(arqueo.bacNio)}</span>
+              <p className="text-xl font-extrabold text-coral-600 break-words">{money(totalBankTransfersNio)}</p>
+              <div className="space-y-1 pt-2 border-t border-nacre-200 text-xs sm:text-sm text-deepSlate-700">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-deepSlate-500">BAC</span>
+                  <span className="font-semibold">{money(arqueo.bacNio)}</span>
                 </div>
-                <div>
-                  <span className="font-bold block text-deepSlate-500">Lafise</span>
-                  <span>{money(arqueo.lafiseNio)}</span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-deepSlate-500">Lafise</span>
+                  <span className="font-semibold">{money(arqueo.lafiseNio)}</span>
                 </div>
-                <div>
-                  <span className="font-bold block text-deepSlate-500">Banpro</span>
-                  <span>{money(arqueo.banproNio)}</span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-deepSlate-500">Banpro</span>
+                  <span className="font-semibold">{money(arqueo.banproNio)}</span>
                 </div>
               </div>
             </div>

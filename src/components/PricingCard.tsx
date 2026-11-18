@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Check, ShieldCheck, Sparkles, MessageCircle, ArrowRight, UserPlus } from 'lucide-react';
 import { OFFICIAL_WHATSAPP_NUMBER } from '../data/realInventoryData';
 
@@ -102,37 +102,37 @@ export const PricingCardsSection: React.FC<PricingCardsSectionProps> = ({
         </div>
 
         {/* 3 Tier Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
           {TIERS_DATA.map((tier) => {
             const isPopular = tier.isPopular;
 
             return (
               <div
                 key={tier.id}
-                className={`relative rounded-3xl flex flex-col justify-between transition-all duration-300 ${
+                className={`relative rounded-3xl flex flex-col justify-between transition-all duration-300 min-w-0 ${
                   isPopular
-                    ? 'bg-white border-2 border-coral-500 shadow-2xl shadow-coral-500/15 scale-100 md:-translate-y-2 z-10'
+                    ? 'bg-white border-2 border-coral-500 shadow-2xl shadow-coral-500/15 scale-100 lg:-translate-y-2 z-10'
                     : 'bg-white/80 hover:bg-white border border-nacre-200 shadow-sm hover:shadow-xl'
                 }`}
               >
                 {/* Popular / Feature Badge */}
                 {tier.badge && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <span className="inline-flex items-center space-x-1 px-4 py-1.5 rounded-full text-xs font-bold tracking-wider text-white bg-coral-gradient shadow-md shadow-coral-500/30">
-                      <Sparkles className="w-3.5 h-3.5" />
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 max-w-[90%]">
+                    <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full text-xs font-bold tracking-wider text-white bg-coral-gradient shadow-md shadow-coral-500/30 whitespace-nowrap">
+                      <Sparkles className="w-3.5 h-3.5 shrink-0" />
                       <span>{tier.badge}</span>
                     </span>
                   </div>
                 )}
 
                 {/* Card Top Content */}
-                <div className="p-8">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="p-6 sm:p-8">
+                  <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
                     <span className="text-xs font-bold uppercase tracking-wider text-coral-600 bg-coral-50 px-3 py-1 rounded-full">
                       Tier {tier.id}
                     </span>
                     <span className="text-xs font-semibold text-deepSlate-500 flex items-center space-x-1">
-                      <ShieldCheck className="w-3.5 h-3.5 text-coral-500" />
+                      <ShieldCheck className="w-3.5 h-3.5 text-coral-500 shrink-0" />
                       <span>Multi-Empresa</span>
                     </span>
                   </div>
@@ -177,18 +177,18 @@ export const PricingCardsSection: React.FC<PricingCardsSectionProps> = ({
                 </div>
 
                 {/* Card Footer / CTA */}
-                <div className="p-8 pt-0">
+                <div className="p-6 sm:p-8 pt-0">
                   <button
                     onClick={() => handleOpenWhatsApp(tier.whatsappMessage)}
-                    className={`w-full py-3.5 px-6 rounded-xl font-bold text-sm flex items-center justify-center space-x-2 transition-all duration-200 shadow-md ${
+                    className={`w-full py-3.5 px-4 sm:px-6 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-center transition-all duration-200 shadow-md ${
                       isPopular
                         ? 'bg-coral-500 hover:bg-coral-600 text-white shadow-coral-500/25 hover:shadow-coral-500/35 active:scale-98'
                         : 'bg-white hover:bg-nacre-50 text-deepSlate-900 border border-nacre-200 hover:border-coral-300'
                     }`}
                   >
-                    <MessageCircle className="w-4 h-4 text-emerald-500 fill-emerald-500" />
+                    <MessageCircle className="w-4 h-4 text-emerald-500 fill-emerald-500 shrink-0" />
                     <span>{tier.ctaText}</span>
-                    <ArrowRight className="w-4 h-4 opacity-70" />
+                    <ArrowRight className="w-4 h-4 opacity-70 shrink-0" />
                   </button>
                   <p className="text-center text-[11px] text-deepSlate-500 mt-2.5">
                     Respuesta rápida vía WhatsApp institucional
@@ -200,8 +200,8 @@ export const PricingCardsSection: React.FC<PricingCardsSectionProps> = ({
         </div>
 
         {/* Extra Profiles Add-on Banner */}
-        <div className="mt-14 max-w-4xl mx-auto bg-gradient-to-r from-coral-50 via-white to-nacre-100 border border-coral-200 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm">
-          <div className="flex items-center space-x-4">
+        <div className="mt-14 max-w-4xl mx-auto bg-gradient-to-r from-coral-50 via-white to-nacre-100 border border-coral-200 rounded-2xl p-5 sm:p-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-5 sm:gap-6 shadow-sm">
+          <div className="flex items-start sm:items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-coral-500/10 border border-coral-200 flex items-center justify-center text-coral-600 shrink-0">
               <UserPlus className="w-6 h-6" />
             </div>
@@ -216,7 +216,7 @@ export const PricingCardsSection: React.FC<PricingCardsSectionProps> = ({
           </div>
           <button
             onClick={() => handleOpenWhatsApp('Hola Gabi Studio! Me gustaría cotizar perfiles adicionales para mi cuenta.')}
-            className="shrink-0 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-white text-coral-600 border border-coral-300 hover:bg-coral-50 transition-colors shadow-sm"
+            className="w-full sm:w-auto shrink-0 px-5 py-3 rounded-xl text-xs sm:text-sm font-bold bg-white text-coral-600 border border-coral-300 hover:bg-coral-50 transition-colors shadow-sm text-center"
           >
             Cotizar perfiles extra
           </button>

@@ -54,9 +54,9 @@ export const HomePage: React.FC = () => {
   const monthName = new Date().toLocaleDateString('es-NI', { month: 'long' });
 
   return (
-    <div className="p-4 sm:p-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto space-y-6 w-full min-w-0">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-deepSlate-900">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-deepSlate-900 break-words">
           Hola 👋 Así va {tenant?.name || 'tu negocio'}
         </h1>
         <p className="text-sm text-deepSlate-500 mt-1">
@@ -67,16 +67,16 @@ export const HomePage: React.FC = () => {
       {/* Acción principal */}
       <Link
         to="/app/closing"
-        className="flex items-center justify-between bg-coral-500 hover:bg-coral-600 text-white rounded-2xl p-5 shadow-md shadow-coral-500/25 transition-colors"
+        className="flex items-center justify-between gap-3 bg-coral-500 hover:bg-coral-600 text-white rounded-2xl p-4 sm:p-5 shadow-md shadow-coral-500/25 transition-colors min-w-0"
       >
-        <div className="flex items-center gap-3">
-          <PlusCircle className="w-7 h-7" />
-          <div>
-            <p className="font-extrabold text-lg">Anotar una venta</p>
+        <div className="flex items-center gap-3 min-w-0">
+          <PlusCircle className="w-7 h-7 shrink-0" />
+          <div className="min-w-0">
+            <p className="font-extrabold text-base sm:text-lg">Anotar una venta</p>
             <p className="text-xs text-white/80">Lo más usado: registra lo que acabas de vender</p>
           </div>
         </div>
-        <ArrowRight className="w-5 h-5" />
+        <ArrowRight className="w-5 h-5 shrink-0" />
       </Link>
 
       {/* Respuestas simples */}
@@ -126,9 +126,9 @@ const Card: React.FC<{ icon: React.ReactNode; question: string; children: React.
   question,
   children,
 }) => (
-  <div className="bg-white border border-nacre-200 rounded-2xl p-5 space-y-2 shadow-2xs">
+  <div className="bg-white border border-nacre-200 rounded-2xl p-4 sm:p-5 space-y-2 shadow-2xs min-w-0">
     <div className="flex items-center gap-2 text-deepSlate-500">
-      {icon}
+      <span className="shrink-0">{icon}</span>
       <h2 className="text-sm font-bold">{question}</h2>
     </div>
     {children}
@@ -137,7 +137,7 @@ const Card: React.FC<{ icon: React.ReactNode; question: string; children: React.
 
 const Big: React.FC<{ children: React.ReactNode; tone?: 'good' | 'bad' }> = ({ children, tone }) => (
   <p
-    className={`text-3xl font-extrabold ${
+    className={`text-2xl sm:text-3xl font-extrabold break-words ${
       tone === 'good' ? 'text-emerald-600' : tone === 'bad' ? 'text-rose-600' : 'text-deepSlate-900'
     }`}
   >

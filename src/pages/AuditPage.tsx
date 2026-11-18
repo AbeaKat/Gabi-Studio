@@ -449,15 +449,15 @@ export const AuditPage: React.FC = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-5xl mx-auto w-full min-w-0">
       {/* Encabezado */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2.5 flex-wrap">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-deepSlate-900 tracking-tight">
               Historial de cambios
             </h1>
-            <span className={`text-xs font-bold px-3 py-1 rounded-full ${PLAN_INFO[3].badgeColor}`}>
+            <span className={`text-xs font-bold px-3 py-1 rounded-full shrink-0 ${PLAN_INFO[3].badgeColor}`}>
               Plan {PLAN_INFO[3].name}
             </span>
           </div>
@@ -469,10 +469,10 @@ export const AuditPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsFormOpen((v) => !v)}
-          className="min-h-[52px] inline-flex items-center justify-center gap-2 px-5 rounded-xl text-sm font-bold text-white bg-coral-500 hover:bg-coral-600 shadow-md shadow-coral-500/25 active:scale-95 transition-all"
+          className="w-full sm:w-auto min-h-[52px] inline-flex items-center justify-center gap-2 px-5 rounded-xl text-sm font-bold text-white bg-coral-500 hover:bg-coral-600 shadow-md shadow-coral-500/25 active:scale-95 transition-all shrink-0 text-center"
         >
-          {isFormOpen ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
-          {isFormOpen ? 'Cerrar formulario' : 'Anotar cambio en inventario'}
+          {isFormOpen ? <X className="w-5 h-5 shrink-0" /> : <Plus className="w-5 h-5 shrink-0" />}
+          <span>{isFormOpen ? 'Cerrar formulario' : 'Anotar cambio en inventario'}</span>
         </button>
       </div>
 

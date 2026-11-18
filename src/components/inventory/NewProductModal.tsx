@@ -134,7 +134,7 @@ export const NewProductModal: React.FC<NewProductModalProps> = ({
             )}
           </div>
 
-          <div className={`grid gap-4 ${isOwner ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          <div className={`grid gap-4 ${isOwner ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
             {isOwner && (
               <div>
                 <label className="block text-sm font-bold text-deepSlate-800 mb-1.5" htmlFor="np-cost">

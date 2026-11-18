@@ -357,15 +357,15 @@ export const BatchesPage: React.FC = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-6xl mx-auto w-full min-w-0">
       {/* Encabezado */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2.5 flex-wrap">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-deepSlate-900 tracking-tight">
               Costo de mis compras
             </h1>
-            <span className={`text-xs font-bold px-3 py-1 rounded-full ${PLAN_INFO[2].badgeColor}`}>
+            <span className={`text-xs font-bold px-3 py-1 rounded-full shrink-0 ${PLAN_INFO[2].badgeColor}`}>
               Plan {PLAN_INFO[2].name}
             </span>
           </div>
@@ -376,10 +376,10 @@ export const BatchesPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsNewBatchOpen((v) => !v)}
-          className="min-h-[48px] inline-flex items-center justify-center gap-2 px-4 rounded-xl text-sm font-bold bg-white hover:bg-nacre-100 text-deepSlate-800 border border-nacre-200"
+          className="w-full sm:w-auto min-h-[48px] inline-flex items-center justify-center gap-2 px-4 rounded-xl text-sm font-bold bg-white hover:bg-nacre-100 text-deepSlate-800 border border-nacre-200 shrink-0"
         >
-          <Plus className="w-4 h-4 text-coral-500" />
-          Nueva compra o pedido
+          <Plus className="w-4 h-4 text-coral-500 shrink-0" />
+          <span>Nueva compra o pedido</span>
         </button>
       </div>
 
@@ -616,9 +616,9 @@ export const BatchesPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="min-h-[52px] px-6 rounded-xl text-base font-bold text-white bg-coral-500 hover:bg-coral-600 inline-flex items-center gap-2 shadow-md shadow-coral-500/20"
+                  className="w-full sm:w-auto min-h-[52px] px-6 rounded-xl text-sm sm:text-base font-bold text-white bg-coral-500 hover:bg-coral-600 inline-flex items-center justify-center gap-2 shadow-md shadow-coral-500/20 text-center"
                 >
-                  Siguiente: El envío <ArrowRight className="w-5 h-5" />
+                  <span>Siguiente: El envío</span> <ArrowRight className="w-5 h-5 shrink-0" />
                 </button>
               </div>
             </div>
@@ -674,20 +674,20 @@ export const BatchesPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2">
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="min-h-[52px] px-5 rounded-xl text-sm font-bold text-deepSlate-700 bg-nacre-100 hover:bg-nacre-200 inline-flex items-center gap-2"
+                  className="min-h-[48px] sm:min-h-[52px] px-5 rounded-xl text-sm font-bold text-deepSlate-700 bg-nacre-100 hover:bg-nacre-200 inline-flex items-center justify-center gap-2"
                 >
-                  <ArrowLeft className="w-4 h-4" /> Anterior
+                  <ArrowLeft className="w-4 h-4 shrink-0" /> <span>Anterior</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setStep(3)}
-                  className="min-h-[52px] px-6 rounded-xl text-base font-bold text-white bg-coral-500 hover:bg-coral-600 inline-flex items-center gap-2 shadow-md shadow-coral-500/20"
+                  className="min-h-[52px] px-6 rounded-xl text-sm sm:text-base font-bold text-white bg-coral-500 hover:bg-coral-600 inline-flex items-center justify-center gap-2 shadow-md shadow-coral-500/20 text-center"
                 >
-                  Siguiente: Impuestos <ArrowRight className="w-5 h-5" />
+                  <span>Siguiente: Impuestos</span> <ArrowRight className="w-5 h-5 shrink-0" />
                 </button>
               </div>
             </div>
@@ -785,20 +785,20 @@ export const BatchesPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2">
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="min-h-[52px] px-5 rounded-xl text-sm font-bold text-deepSlate-700 bg-nacre-100 hover:bg-nacre-200 inline-flex items-center gap-2"
+                  className="min-h-[48px] sm:min-h-[52px] px-5 rounded-xl text-sm font-bold text-deepSlate-700 bg-nacre-100 hover:bg-nacre-200 inline-flex items-center justify-center gap-2"
                 >
-                  <ArrowLeft className="w-4 h-4" /> Anterior
+                  <ArrowLeft className="w-4 h-4 shrink-0" /> <span>Anterior</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setStep(4)}
-                  className="min-h-[52px] px-6 rounded-xl text-base font-bold text-white bg-coral-500 hover:bg-coral-600 inline-flex items-center gap-2 shadow-md shadow-coral-500/20"
+                  className="min-h-[52px] px-6 rounded-xl text-sm sm:text-base font-bold text-white bg-coral-500 hover:bg-coral-600 inline-flex items-center justify-center gap-2 shadow-md shadow-coral-500/20 text-center"
                 >
-                  Ver resultado y precios sugeridos <ArrowRight className="w-5 h-5" />
+                  <span>Ver resultado y precios sugeridos</span> <ArrowRight className="w-5 h-5 shrink-0" />
                 </button>
               </div>
             </div>
@@ -887,10 +887,10 @@ export const BatchesPage: React.FC = () => {
                     type="button"
                     onClick={() => handleApplyProration(true)}
                     disabled={totalSkusInBatch === 0}
-                    className="min-h-[44px] px-4 rounded-xl text-sm font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 inline-flex items-center gap-1.5"
+                    className="w-full sm:w-auto min-h-[44px] px-4 rounded-xl text-sm font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 inline-flex items-center justify-center gap-1.5 text-center"
                   >
-                    <Sparkles className="w-4 h-4" />
-                    Usar precios sugeridos en todos
+                    <Sparkles className="w-4 h-4 shrink-0" />
+                    <span>Usar precios sugeridos en todos</span>
                   </button>
                 </div>
               </div>
@@ -909,7 +909,7 @@ export const BatchesPage: React.FC = () => {
               ) : (
                 <>
                   {/* Escritorio: Tabla clara y escaneable */}
-                  <div className="hidden md:block border border-nacre-200 rounded-2xl overflow-hidden">
+                  <div className="hidden lg:block border border-nacre-200 rounded-2xl overflow-hidden">
                     <div className="max-h-[480px] overflow-y-auto">
                       <table className="w-full text-left text-sm">
                         <thead className="sticky top-0 bg-nacre-100 border-b border-nacre-200 text-deepSlate-700 font-bold">
@@ -1019,8 +1019,8 @@ export const BatchesPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Móvil: Tarjetas explicadas en palabras */}
-                  <div className="md:hidden space-y-3">
+                  {/* Móvil y Tablet: Tarjetas explicadas en palabras */}
+                  <div className="lg:hidden space-y-3">
                     {previewRows.map((row) => {
                       const {
                         product: p,
@@ -1037,10 +1037,10 @@ export const BatchesPage: React.FC = () => {
                       return (
                         <div
                           key={p.id}
-                          className="rounded-2xl border border-nacre-200 bg-white p-4 space-y-3"
+                          className="rounded-2xl border border-nacre-200 bg-white p-4 space-y-3 min-w-0"
                         >
-                          <div>
-                            <p className="font-extrabold text-deepSlate-900 text-base">
+                          <div className="min-w-0">
+                            <p className="font-extrabold text-deepSlate-900 text-base break-words">
                               {p.name || p.sku}
                             </p>
                             <p className="text-xs text-deepSlate-400">
@@ -1058,7 +1058,7 @@ export const BatchesPage: React.FC = () => {
                             </p>
                           </div>
 
-                          <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center justify-between gap-2 flex-wrap text-sm">
                             <span className="text-deepSlate-600">
                               Precio hoy: <strong>{fmtNio(p.price_nio, 0)}</strong>
                             </span>
@@ -1073,7 +1073,7 @@ export const BatchesPage: React.FC = () => {
                             </span>
                           </div>
 
-                          <div className="p-3 rounded-xl bg-coral-50/50 border border-coral-200 flex items-center justify-between gap-2">
+                          <div className="p-3 rounded-xl bg-coral-50/50 border border-coral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                             <div className="text-sm">
                               <span className="text-xs font-bold text-coral-700 block">
                                 Sugerido para ganar {targetMarginPct}%:
@@ -1088,7 +1088,7 @@ export const BatchesPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleApplySingleSuggestedPrice(row)}
-                              className={`min-h-[44px] px-3.5 rounded-xl text-xs font-bold shrink-0 ${
+                              className={`w-full sm:w-auto min-h-[44px] px-4 rounded-xl text-xs font-bold shrink-0 text-center ${
                                 isJustSaved
                                   ? 'bg-emerald-600 text-white'
                                   : 'bg-coral-500 text-white'
@@ -1104,22 +1104,22 @@ export const BatchesPage: React.FC = () => {
                 </>
               )}
 
-              <div className="flex items-center justify-between pt-2 border-t border-nacre-200">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-nacre-200">
                 <button
                   type="button"
                   onClick={() => setStep(3)}
-                  className="min-h-[48px] px-5 rounded-xl text-sm font-bold text-deepSlate-700 bg-nacre-100 hover:bg-nacre-200 inline-flex items-center gap-2"
+                  className="min-h-[48px] px-5 rounded-xl text-sm font-bold text-deepSlate-700 bg-nacre-100 hover:bg-nacre-200 inline-flex items-center justify-center gap-2"
                 >
-                  <ArrowLeft className="w-4 h-4" /> Volver a impuestos
+                  <ArrowLeft className="w-4 h-4 shrink-0" /> <span>Volver a impuestos</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleApplyProration(false)}
                   disabled={totalSkusInBatch === 0}
-                  className="min-h-[52px] px-6 rounded-xl text-base font-bold text-white bg-coral-500 hover:bg-coral-600 disabled:opacity-50 shadow-md shadow-coral-500/25 inline-flex items-center gap-2"
+                  className="min-h-[52px] px-6 rounded-xl text-sm sm:text-base font-bold text-white bg-coral-500 hover:bg-coral-600 disabled:opacity-50 shadow-md shadow-coral-500/25 inline-flex items-center justify-center gap-2 text-center"
                 >
-                  <CheckCircle2 className="w-5 h-5" />
-                  Guardar costos reales en mis productos
+                  <CheckCircle2 className="w-5 h-5 shrink-0" />
+                  <span>Guardar costos reales en mis productos</span>
                 </button>
               </div>
             </div>

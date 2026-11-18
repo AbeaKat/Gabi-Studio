@@ -251,10 +251,10 @@ export const DetailedReport: React.FC<Props> = (p) => {
                     <p className="text-sm text-deepSlate-500">Resumen contable de ventas, costos, gastos y mermas {p.periodLabel}.</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-sm font-bold text-emerald-800">Margen neto: {m.netMarginPercent.toFixed(1)}%</span>
-                  <button type="button" onClick={handleExport} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700">
-                    <FileSpreadsheet className="w-4 h-4" /> Descargar Excel
+                  <button type="button" onClick={handleExport} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700">
+                    <FileSpreadsheet className="w-4 h-4 shrink-0" /> <span>Descargar Excel</span>
                   </button>
                 </div>
               </div>
@@ -318,13 +318,13 @@ export const DetailedReport: React.FC<Props> = (p) => {
                   </p>
                 </div>
               </div>
-              <div className="inline-flex gap-1 p-1 rounded-2xl bg-nacre-100 border border-nacre-200">
+              <div className="inline-flex flex-wrap gap-1 p-1 rounded-2xl bg-nacre-100 border border-nacre-200">
                 {(['A', 'B', 'C'] as const).map((t) => (
                   <button
                     key={t}
                     type="button"
                     onClick={() => setAbcTab(t)}
-                    className={`px-4 py-2 rounded-xl text-sm font-bold ${abcTab === t ? 'bg-white text-coral-600 border border-nacre-200' : 'text-deepSlate-600'}`}
+                    className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold ${abcTab === t ? 'bg-white text-coral-600 border border-nacre-200' : 'text-deepSlate-600'}`}
                   >
                     {t === 'A' ? 'Estrella' : t === 'B' ? 'Sin rotación' : 'Dinero parado'} ({abcLists[t].length})
                   </button>

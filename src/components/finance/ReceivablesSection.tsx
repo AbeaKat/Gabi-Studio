@@ -83,29 +83,29 @@ export const ReceivablesSection: React.FC<Props> = ({ items, headers, successMsg
         <div className="space-y-3">
           {customers.map((c) => (
             <div key={c.name} className="rounded-2xl border border-nacre-200 overflow-hidden">
-              <div className="flex items-center justify-between gap-3 px-4 py-3 bg-nacre-50 border-b border-nacre-200">
-                <div>
-                  <p className="text-base font-extrabold text-deepSlate-900">{c.name}</p>
+              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 bg-nacre-50 border-b border-nacre-200">
+                <div className="min-w-0">
+                  <p className="text-base font-extrabold text-deepSlate-900 break-words">{c.name}</p>
                   {c.anyOverdue && <p className="text-sm font-bold text-rose-600">Tiene pagos vencidos</p>}
                 </div>
-                <p className="text-lg font-extrabold text-amber-800">Debe {fmtC(c.total, 2)}</p>
+                <p className="text-base sm:text-lg font-extrabold text-amber-800 shrink-0">Debe {fmtC(c.total, 2)}</p>
               </div>
               <ul className="divide-y divide-nacre-100">
                 {c.rows.map(({ item, phone, due, overdue, saldo }) => {
                   const total = item.final_unit_price_nio * item.quantity;
                   const paid = Number(item.amount_paid_nio ?? Math.max(0, total - saldo));
                   return (
-                    <li key={item.id} className="p-4 space-y-3">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-semibold text-deepSlate-900">
+                    <li key={item.id} className="p-4 space-y-3 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-deepSlate-900 break-words">
                             {item.product_name_snapshot || item.sku_snapshot} <span className="text-deepSlate-500 font-normal">× {item.quantity}</span>
                           </p>
-                          <p className="text-sm text-deepSlate-600">
+                          <p className="text-sm text-deepSlate-600 break-words">
                             Total {fmtC(total, 2)} · Ha pagado {fmtC(paid, 2)} · <strong className="text-amber-800">Falta {fmtC(saldo, 2)}</strong>
                           </p>
-                          <p className="text-sm text-deepSlate-500 flex items-center gap-1.5 mt-0.5">
-                            <Clock className="w-3.5 h-3.5" />
+                          <p className="text-sm text-deepSlate-500 flex flex-wrap items-center gap-1.5 mt-0.5">
+                            <Clock className="w-3.5 h-3.5 shrink-0" />
                             <span className={overdue ? 'text-rose-600 font-bold' : ''}>
                               {due ? (overdue ? `Venció el ${due}` : `Debe pagar antes del ${due}`) : 'Sin fecha límite'}
                             </span>
@@ -113,12 +113,12 @@ export const ReceivablesSection: React.FC<Props> = ({ items, headers, successMsg
                           </p>
                         </div>
                         {activeId !== item.id && (
-                          <div className="flex flex-wrap gap-2">
-                            <button type="button" onClick={() => open(item)} className="px-4 py-2 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700">
+                          <div className="flex flex-col sm:flex-row flex-wrap gap-2 shrink-0">
+                            <button type="button" onClick={() => open(item)} className="min-h-[42px] px-4 py-2 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 text-center">
                               Registrar pago
                             </button>
-                            <button type="button" onClick={() => onRemind(item)} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold text-deepSlate-800 bg-white border border-nacre-300 hover:bg-nacre-50">
-                              <Send className="w-4 h-4 text-emerald-600" /> Recordar por WhatsApp
+                            <button type="button" onClick={() => onRemind(item)} className="min-h-[42px] inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold text-deepSlate-800 bg-white border border-nacre-300 hover:bg-nacre-50 text-center">
+                              <Send className="w-4 h-4 text-emerald-600 shrink-0" /> <span>Recordar por WhatsApp</span>
                             </button>
                           </div>
                         )}

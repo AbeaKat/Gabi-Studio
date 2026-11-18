@@ -80,9 +80,9 @@ const InlineNumber: React.FC<InlineNumberProps> = ({
 
   if (editing) {
     return (
-      <div className="inline-flex flex-col items-end">
-        <div className="flex items-center gap-1">
-          {prefix && <span className="text-sm font-bold text-deepSlate-500">{prefix}</span>}
+      <div className="inline-flex flex-col items-end max-w-full">
+        <div className="flex items-center gap-1 max-w-full">
+          {prefix && <span className="text-xs sm:text-sm font-bold text-deepSlate-500 shrink-0">{prefix}</span>}
           <input
             autoFocus
             type="number"
@@ -99,16 +99,16 @@ const InlineNumber: React.FC<InlineNumberProps> = ({
               if (e.key === 'Enter') commit();
               if (e.key === 'Escape') setEditing(false);
             }}
-            className="w-24 min-h-[44px] px-2 text-sm font-bold text-right rounded-xl border-2 border-coral-500 bg-white focus:outline-none"
+            className="w-20 sm:w-24 min-w-0 min-h-[40px] sm:min-h-[44px] px-2 text-sm font-bold text-right rounded-xl border-2 border-coral-500 bg-white focus:outline-none"
           />
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={commit}
-            className="min-w-[44px] min-h-[44px] rounded-xl bg-coral-500 text-white flex items-center justify-center"
+            className="min-w-[40px] min-h-[40px] sm:min-w-[44px] sm:min-h-[44px] rounded-xl bg-coral-500 text-white flex items-center justify-center shrink-0"
             aria-label="Guardar"
           >
-            <Check className="w-5 h-5" />
+            <Check className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
         {error && <span className="text-xs text-rose-600 font-semibold mt-1">{error}</span>}
@@ -256,7 +256,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
   return (
     <>
       {/* Escritorio: tabla */}
-      <div className="hidden md:block bg-white rounded-3xl border border-nacre-200 overflow-hidden">
+      <div className="hidden lg:block bg-white rounded-3xl border border-nacre-200 overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="bg-nacre-50 border-b border-nacre-200 text-deepSlate-600 font-bold">
@@ -348,54 +348,58 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
         </table>
       </div>
 
-      {/* Móvil: tarjetas */}
-      <div className="md:hidden space-y-3">
+      {/* Móvil y Tablet: tarjetas */}
+      <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-3">
         {products.map((p) => {
           const { costNio, profit, pct } = profitPerPiece(p, exchangeRate);
           return (
-            <div key={p.id} className="bg-white rounded-2xl border border-nacre-200 p-4 space-y-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="font-extrabold text-deepSlate-900 text-base leading-tight">
-                    {p.name || `Producto ${p.sku}`}
+            <div key={p.id} className="bg-white rounded-2xl border border-nacre-200 p-4 space-y-3 min-w-0 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-extrabold text-deepSlate-900 text-base leading-tight break-words">
+                      {p.name || `Producto ${p.sku}`}
+                    </p>
+                    <p className="text-xs text-deepSlate-400 mt-0.5 break-all">Código {p.sku}</p>
+                  </div>
+                  <div className="shrink-0">
+                    <StockBadge stock={p.stock_current} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2.5 text-sm">
+                  <div className="bg-nacre-50 rounded-xl p-3 min-w-0">
+                    <p className="text-xs font-bold text-deepSlate-500 mb-0.5">Cuánto queda</p>
+                    <InlineNumber
+                      display={`${p.stock_current} ${p.stock_current === 1 ? 'pieza' : 'piezas'}`}
+                      initial={p.stock_current}
+                      label="cantidad que tienes"
+                      integer
+                      onSave={saveStock(p)}
+                    />
+                  </div>
+                  <div className="bg-nacre-50 rounded-xl p-3 min-w-0">
+                    <p className="text-xs font-bold text-deepSlate-500 mb-0.5">Precio de venta</p>
+                    <InlineNumber
+                      display={<span className="text-coral-600">{fmtNio(p.price_nio)}</span>}
+                      initial={p.price_nio}
+                      prefix="C$"
+                      label="precio en córdobas"
+                      strong
+                      onSave={savePrice(p)}
+                    />
+                    <p className="text-xs text-deepSlate-400">{fmtUsd(p.price_usd)}</p>
+                  </div>
+                </div>
+                {isOwner && (
+                  <p className="text-sm text-deepSlate-600 break-words">
+                    Te costó <strong>{fmtNio(costNio)}</strong> · Ganas{' '}
+                    <strong className={profit <= 0 ? 'text-rose-600' : 'text-emerald-700'}>
+                      {fmtNio(profit)}
+                    </strong>{' '}
+                    ({pct.toFixed(0)}%)
                   </p>
-                  <p className="text-xs text-deepSlate-400 mt-0.5">Código {p.sku}</p>
-                </div>
-                <StockBadge stock={p.stock_current} />
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="bg-nacre-50 rounded-xl p-3">
-                  <p className="text-xs font-bold text-deepSlate-500 mb-0.5">Cuánto queda</p>
-                  <InlineNumber
-                    display={`${p.stock_current} ${p.stock_current === 1 ? 'pieza' : 'piezas'}`}
-                    initial={p.stock_current}
-                    label="cantidad que tienes"
-                    integer
-                    onSave={saveStock(p)}
-                  />
-                </div>
-                <div className="bg-nacre-50 rounded-xl p-3">
-                  <p className="text-xs font-bold text-deepSlate-500 mb-0.5">Precio de venta</p>
-                  <InlineNumber
-                    display={<span className="text-coral-600">{fmtNio(p.price_nio)}</span>}
-                    initial={p.price_nio}
-                    prefix="C$"
-                    label="precio en córdobas"
-                    strong
-                    onSave={savePrice(p)}
-                  />
-                  <p className="text-xs text-deepSlate-400">{fmtUsd(p.price_usd)}</p>
-                </div>
-              </div>
-              {isOwner && (
-                <p className="text-sm text-deepSlate-600">
-                  Te costó <strong>{fmtNio(costNio)}</strong> · Ganas{' '}
-                  <strong className={profit <= 0 ? 'text-rose-600' : 'text-emerald-700'}>
-                    {fmtNio(profit)}
-                  </strong>{' '}
-                  ({pct.toFixed(0)}%)
-                </p>
-              )}
               <div className="border-t border-nacre-100 pt-1">
                 <RowActions p={p} />
               </div>

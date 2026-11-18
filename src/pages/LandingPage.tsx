@@ -137,12 +137,12 @@ export const LandingPage: React.FC = () => {
           
           {/* Hero Headings */}
           <div className="text-center max-w-4xl mx-auto mb-12">
-            <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-white border border-coral-200 shadow-sm text-coral-600 text-xs font-bold uppercase tracking-wider mb-6 animate-fade-in">
-              <Sparkles className="w-3.5 h-3.5 text-coral-500" />
-              <span>SaaS de Control Interno para Comercio, Distribución & Retail en Nicaragua</span>
+            <div className="inline-flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-2xl sm:rounded-full bg-white border border-coral-200 shadow-sm text-coral-600 text-[11px] sm:text-xs font-bold uppercase tracking-wider mb-6 animate-fade-in max-w-full">
+              <Sparkles className="w-3.5 h-3.5 text-coral-500 shrink-0" />
+              <span className="leading-snug">SaaS de Control Interno para Comercio, Distribución & Retail en Nicaragua</span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-deepSlate-900 tracking-tight leading-[1.15]">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-deepSlate-900 tracking-tight leading-[1.15]">
               El control financiero e inventario que tu negocio{' '}
               <span className="text-coral-500">
                 realmente merece
@@ -193,16 +193,16 @@ export const LandingPage: React.FC = () => {
           <div className="mt-8 max-w-5xl mx-auto bg-white rounded-3xl border border-nacre-200 shadow-2xl shadow-deepSlate-900/5 overflow-hidden">
             
             {/* Table Mockup Header Bar */}
-            <div className="bg-gradient-to-r from-nacre-50 via-white to-nacre-100 border-b border-nacre-200 px-6 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="bg-gradient-to-r from-nacre-50 via-white to-nacre-100 border-b border-nacre-200 px-4 sm:px-6 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               
-              <div className="flex items-center space-x-3">
-                <div className="flex space-x-1.5">
+              <div className="flex items-center flex-wrap gap-2">
+                <div className="flex space-x-1.5 shrink-0">
                   <div className="w-3 h-3 rounded-full bg-rose-400"></div>
                   <div className="w-3 h-3 rounded-full bg-amber-400"></div>
                   <div className="w-3 h-3 rounded-full bg-emerald-400"></div>
                 </div>
-                <div className="h-4 w-px bg-nacre-200 mx-1"></div>
-                <div className="flex items-center space-x-2">
+                <div className="h-4 w-px bg-nacre-200 mx-1 hidden sm:block"></div>
+                <div className="flex items-center flex-wrap gap-1.5">
                   <span className="font-extrabold text-sm text-deepSlate-900 tracking-tight">Gabi Studio</span>
                   <span className="text-xs text-deepSlate-500">/ Catálogo e Inventario</span>
                 </div>
@@ -212,36 +212,38 @@ export const LandingPage: React.FC = () => {
               </div>
 
               {/* View Switcher Controls */}
-              <div className="flex items-center space-x-2 bg-nacre-100 p-1 rounded-xl border border-nacre-200">
-                <span className="text-[11px] font-semibold text-deepSlate-500 px-2">Simular Vista:</span>
-                <button
-                  onClick={() => setRoleView('owner')}
-                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ease-out-natural ${
-                    roleView === 'owner'
-                      ? 'bg-white text-coral-600 shadow-sm'
-                      : 'text-deepSlate-500 hover:text-deepSlate-900'
-                  }`}
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>Dueño (Costos Visibles)</span>
-                </button>
-                <button
-                  onClick={() => setRoleView('seller')}
-                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ease-out-natural ${
-                    roleView === 'seller'
-                      ? 'bg-white text-coral-600 shadow-sm'
-                      : 'text-deepSlate-500 hover:text-deepSlate-900'
-                  }`}
-                >
-                  <EyeOff className="w-3.5 h-3.5" />
-                  <span>Vendedor (Costos Protegidos)</span>
-                </button>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 bg-nacre-100 p-1.5 rounded-xl border border-nacre-200 w-full lg:w-auto">
+                <span className="text-[11px] font-semibold text-deepSlate-500 px-2 pt-0.5 sm:pt-0">Simular Vista:</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 w-full sm:w-auto">
+                  <button
+                    onClick={() => setRoleView('owner')}
+                    className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all duration-200 ease-out-natural text-center ${
+                      roleView === 'owner'
+                        ? 'bg-white text-coral-600 shadow-sm'
+                        : 'text-deepSlate-500 hover:text-deepSlate-900'
+                    }`}
+                  >
+                    <Eye className="w-3.5 h-3.5 shrink-0" />
+                    <span>Dueño (Costos Visibles)</span>
+                  </button>
+                  <button
+                    onClick={() => setRoleView('seller')}
+                    className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all duration-200 ease-out-natural text-center ${
+                      roleView === 'seller'
+                        ? 'bg-white text-coral-600 shadow-sm'
+                        : 'text-deepSlate-500 hover:text-deepSlate-900'
+                    }`}
+                  >
+                    <EyeOff className="w-3.5 h-3.5 shrink-0" />
+                    <span>Vendedor (Costos Protegidos)</span>
+                  </button>
+                </div>
               </div>
 
             </div>
 
             {/* Table Mockup Filter & Actions */}
-            <div className="p-4 sm:p-6 bg-white border-b border-nacre-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="p-4 sm:p-6 bg-white border-b border-nacre-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               <div className="relative w-full sm:w-72">
                 <Search className="w-4 h-4 text-deepSlate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -249,11 +251,11 @@ export const LandingPage: React.FC = () => {
                   placeholder="Buscar por SKU o pieza..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-400 focus:bg-white transition-colors"
+                  className="w-full pl-9 pr-3 py-2.5 text-xs rounded-xl bg-nacre-50 border border-nacre-200 focus:outline-none focus:border-coral-400 focus:bg-white transition-colors"
                 />
               </div>
 
-              <div className="flex items-center space-x-2 text-xs">
+              <div className="flex items-center flex-wrap gap-2 text-xs">
                 <span className="text-deepSlate-500 font-medium">Lote Activo:</span>
                 <span className="px-2.5 py-1 rounded-lg bg-coral-50 text-coral-700 font-bold border border-coral-200">
                   Lote General - Importación
@@ -262,8 +264,8 @@ export const LandingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Table Itself */}
-            <div className="overflow-x-auto">
+            {/* Table Itself (Desktop & Tablet) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="bg-nacre-50/70 border-b border-nacre-200 text-deepSlate-500 uppercase tracking-wider font-semibold">
@@ -357,6 +359,76 @@ export const LandingPage: React.FC = () => {
                   })}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Cards for Interactive Preview (No Horizontal Scroll) */}
+            <div className="md:hidden divide-y divide-nacre-100">
+              {filteredProducts.map((p) => {
+                const marginPercent = ((p.priceUsd - p.costUsd) / p.priceUsd) * 100;
+                const isHealthy = marginPercent >= 35;
+                return (
+                  <div key={p.sku} className="p-4 space-y-2.5 text-left">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-deepSlate-900 leading-snug">{p.name}</p>
+                        <div className="flex items-center flex-wrap gap-1.5 mt-1">
+                          <span className="font-mono text-xs font-bold text-deepSlate-600">{p.sku}</span>
+                          <span className="px-2 py-0.5 rounded-full bg-nacre-100 text-[10px] font-semibold text-deepSlate-700">
+                            {p.batch}
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className={`shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold ${
+                          p.stock <= 2
+                            ? 'bg-rose-100 text-rose-700 font-bold'
+                            : 'bg-nacre-100 text-deepSlate-800'
+                        }`}
+                      >
+                        {p.stock} {p.stock === 1 ? 'ud' : 'uds'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
+                      <div className="p-2.5 rounded-xl bg-nacre-50 border border-nacre-200">
+                        <span className="text-[11px] text-deepSlate-500 block">Precio Venta</span>
+                        <span className="font-mono font-bold text-coral-600 text-sm">
+                          C${p.priceNio.toFixed(2)}
+                        </span>
+                        <span className="font-mono text-[11px] text-deepSlate-500 block">
+                          ${p.priceUsd.toFixed(2)} USD
+                        </span>
+                      </div>
+
+                      {roleView === 'owner' ? (
+                        <div className="p-2.5 rounded-xl bg-nacre-50 border border-nacre-200">
+                          <span className="text-[11px] text-deepSlate-500 block">Costo & Margen</span>
+                          <span className="font-mono font-bold text-deepSlate-900 text-sm block">
+                            ${p.costUsd.toFixed(2)}
+                          </span>
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded font-mono text-[10px] font-bold mt-0.5 ${
+                              isHealthy
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : 'bg-amber-50 text-amber-700 border border-amber-200'
+                            }`}
+                          >
+                            +{marginPercent.toFixed(1)}%
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="p-2.5 rounded-xl bg-nacre-50 border border-nacre-200 flex flex-col justify-center items-start">
+                          <span className="text-[11px] text-deepSlate-500 block mb-1">Costos</span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-nacre-100 text-deepSlate-500 border border-nacre-200">
+                            <Lock className="w-3 h-3 text-deepSlate-400 shrink-0" />
+                            <span>Confidencial</span>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Table Mockup Footer Banner */}
@@ -474,69 +546,69 @@ export const LandingPage: React.FC = () => {
       <PricingCardsSection />
 
       {/* Currency & Financial Clarity Section */}
-      <section id="bimoneda" className="py-20 bg-white border-t border-nacre-200">
+      <section id="bimoneda" className="py-16 sm:py-20 bg-white border-t border-nacre-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-gradient-to-r from-nacre-100 via-coral-50 to-nacre-50 rounded-3xl border border-coral-200 p-8 sm:p-12 lg:p-16 flex flex-col lg:flex-row items-center justify-between gap-12">
+          <div className="bg-gradient-to-r from-nacre-100 via-coral-50 to-nacre-50 rounded-3xl border border-coral-200 p-5 sm:p-10 lg:p-16 flex flex-col lg:flex-row items-center justify-between gap-8 lg:gap-12">
             
-            <div className="max-w-xl">
+            <div className="max-w-xl w-full">
               <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-white border border-coral-200 text-coral-600 text-xs font-bold uppercase tracking-wider mb-4">
-                <Coins className="w-3.5 h-3.5" />
+                <Coins className="w-3.5 h-3.5 shrink-0" />
                 <span>Cero Fugas Cambiarias</span>
               </div>
-              <h3 className="text-3xl font-extrabold text-deepSlate-900 tracking-tight">
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-deepSlate-900 tracking-tight">
                 El fin de las confusiones entre Dólares y Córdobas
               </h3>
-              <p className="mt-4 text-base text-deepSlate-600 leading-relaxed">
+              <p className="mt-4 text-sm sm:text-base text-deepSlate-600 leading-relaxed">
                 En el comercio minorista, comprar en dólares e importar mercancía mientras se vende en moneda local suele ser la principal causa de descapitalización silenciosa.
               </p>
-              <p className="mt-3 text-base text-deepSlate-600 leading-relaxed">
+              <p className="mt-3 text-sm sm:text-base text-deepSlate-600 leading-relaxed">
                 Gabi Studio unifica tu costeo real, actualiza la equivalencia cambiaria en un solo clic y te garantiza que cada pieza vendida te deje el margen neto que calculaste.
               </p>
 
-              <div className="mt-8">
+              <div className="mt-6 sm:mt-8">
                 <button
                   onClick={() => handleWhatsAppContact('Hola Gabi Studio! Deseo una demostración de la gestión bimoneda USD y C$.')}
-                  className="px-6 py-3.5 rounded-xl font-bold text-sm bg-coral-500 hover:bg-coral-600 text-white shadow-md shadow-coral-500/25 flex items-center space-x-2"
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-xl font-bold text-sm bg-coral-500 hover:bg-coral-600 text-white shadow-md shadow-coral-500/25 flex items-center justify-center gap-2 text-center"
                 >
                   <span>Pedir demostración personalizada</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4 shrink-0" />
                 </button>
               </div>
             </div>
 
             {/* Currency Showcase Card */}
-            <div className="w-full lg:w-96 bg-white p-6 rounded-2xl border border-nacre-200 shadow-xl space-y-4">
-              <div className="flex items-center justify-between border-b border-nacre-100 pb-3">
+            <div className="w-full lg:w-96 bg-white p-4 sm:p-6 rounded-2xl border border-nacre-200 shadow-xl space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2 border-b border-nacre-100 pb-3">
                 <span className="text-xs font-bold text-deepSlate-700 uppercase">Tasa de Cambio Global</span>
-                <span className="font-mono text-sm font-extrabold text-coral-600 bg-coral-50 px-2.5 py-1 rounded-lg">
+                <span className="font-mono text-xs sm:text-sm font-extrabold text-coral-600 bg-coral-50 px-2.5 py-1 rounded-lg">
                   1 USD = C$ 36.6200
                 </span>
               </div>
 
               <div className="space-y-2.5 text-xs">
-                <div className="flex justify-between py-1.5 border-b border-nacre-100">
+                <div className="flex justify-between gap-2 py-1.5 border-b border-nacre-100">
                   <span className="text-deepSlate-500">Costo Base Unitario:</span>
-                  <span className="font-mono font-bold text-deepSlate-900">$8.50 USD</span>
+                  <span className="font-mono font-bold text-deepSlate-900 shrink-0">$8.50 USD</span>
                 </div>
-                <div className="flex justify-between py-1.5 border-b border-nacre-100">
+                <div className="flex justify-between gap-2 py-1.5 border-b border-nacre-100">
                   <span className="text-deepSlate-500">Prorrateo Flete & Aduana:</span>
-                  <span className="font-mono font-bold text-deepSlate-900">+$1.80 USD</span>
+                  <span className="font-mono font-bold text-deepSlate-900 shrink-0">+$1.80 USD</span>
                 </div>
-                <div className="flex justify-between py-1.5 border-b border-nacre-100 bg-nacre-50 px-2 rounded">
+                <div className="flex justify-between gap-2 py-1.5 border-b border-nacre-100 bg-nacre-50 px-2 rounded">
                   <span className="text-deepSlate-700 font-semibold">Costo Real (Landed Cost):</span>
-                  <span className="font-mono font-extrabold text-deepSlate-900">$10.30 USD</span>
+                  <span className="font-mono font-extrabold text-deepSlate-900 shrink-0">$10.30 USD</span>
                 </div>
-                <div className="flex justify-between py-1.5 border-b border-nacre-100">
+                <div className="flex justify-between gap-2 py-1.5 border-b border-nacre-100">
                   <span className="text-deepSlate-500">Precio Público en USD:</span>
-                  <span className="font-mono font-bold text-deepSlate-900">$28.00 USD</span>
+                  <span className="font-mono font-bold text-deepSlate-900 shrink-0">$28.00 USD</span>
                 </div>
-                <div className="flex justify-between py-1.5 border-b border-nacre-100 bg-coral-50/50 px-2 rounded">
+                <div className="flex justify-between gap-2 py-1.5 border-b border-nacre-100 bg-coral-50/50 px-2 rounded">
                   <span className="text-coral-800 font-bold">Precio Final Sugerido en C$:</span>
-                  <span className="font-mono font-extrabold text-coral-600">C$ 1,025.00</span>
+                  <span className="font-mono font-extrabold text-coral-600 shrink-0">C$ 1,025.00</span>
                 </div>
-                <div className="flex justify-between pt-2">
+                <div className="flex justify-between gap-2 pt-2">
                   <span className="text-emerald-700 font-bold">Ganancia Bruta Congelada:</span>
-                  <span className="font-mono font-extrabold text-emerald-600">+$17.70 USD (63.2%)</span>
+                  <span className="font-mono font-extrabold text-emerald-600 shrink-0">+$17.70 USD (63.2%)</span>
                 </div>
               </div>
             </div>

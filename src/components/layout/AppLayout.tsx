@@ -75,14 +75,14 @@ export const AppLayout: React.FC = () => {
           key={item.to}
           type="button"
           onClick={() => setUpsellTier(item.minTier as 2 | 3)}
-          className="w-full flex items-center justify-between px-3 py-3 rounded-xl text-sm text-deepSlate-400 hover:bg-nacre-200/50"
+          className="w-full flex items-center justify-between gap-2 px-3 py-3 rounded-xl text-sm text-deepSlate-400 hover:bg-nacre-200/50 text-left min-w-0"
         >
-          <span className="flex items-center gap-3">
-            <Icon className="w-5 h-5" />
-            {item.label}
+          <span className="flex items-center gap-3 min-w-0">
+            <Icon className="w-5 h-5 shrink-0" />
+            <span className="truncate">{item.label}</span>
           </span>
-          <span className="flex items-center gap-1 text-[10px] bg-nacre-200 text-deepSlate-600 px-1.5 py-0.5 rounded font-bold">
-            <Lock className="w-3 h-3" />
+          <span className="flex items-center gap-1 text-[10px] bg-nacre-200 text-deepSlate-600 px-1.5 py-0.5 rounded font-bold shrink-0">
+            <Lock className="w-3 h-3 shrink-0" />
             {PLAN_INFO[item.minTier].short}
           </span>
         </button>
@@ -95,15 +95,15 @@ export const AppLayout: React.FC = () => {
         onClick={onClick}
         title={item.hint}
         className={({ isActive }) =>
-          `flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold transition-all ${
+          `flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold transition-all min-w-0 ${
             isActive
               ? 'bg-coral-500 text-white shadow-sm'
               : 'text-deepSlate-700 hover:bg-white/80'
           }`
         }
       >
-        <Icon className="w-5 h-5" />
-        {item.label}
+        <Icon className="w-5 h-5 shrink-0" />
+        <span className="truncate">{item.label}</span>
       </NavLink>
     );
   };
@@ -204,27 +204,28 @@ export const AppLayout: React.FC = () => {
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 bg-white border-b border-nacre-200 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30">
-          <div className="flex items-center gap-3 min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
+        <header className="min-h-[64px] bg-white border-b border-nacre-200 px-3 sm:px-6 py-2 flex items-center justify-between gap-2 sticky top-0 z-30">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="md:hidden p-2 rounded-lg hover:bg-nacre-100"
+              className="md:hidden min-w-[40px] min-h-[40px] p-2 rounded-lg hover:bg-nacre-100 flex items-center justify-center shrink-0"
               aria-label="Abrir menú"
             >
               <Menu className="w-5 h-5" />
             </button>
-            <span className="font-extrabold truncate">{businessName}</span>
-            <span className="hidden sm:inline-flex text-xs font-mono text-deepSlate-400">
+            <span className="font-extrabold text-sm sm:text-base truncate">{businessName}</span>
+            <span className="hidden sm:inline-flex text-xs font-mono text-deepSlate-400 truncate">
               @{profile?.username}
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* Precio del dólar */}
             {editingRate && isOwner ? (
-              <div className="flex items-center gap-1.5 bg-white border-2 border-coral-500 rounded-xl px-2 py-1">
-                <span className="text-xs text-deepSlate-500">1 dólar = C$</span>
+              <div className="flex items-center gap-1 bg-white border-2 border-coral-500 rounded-xl px-2 py-1">
+                <span className="hidden sm:inline text-xs text-deepSlate-500">1 dólar =</span>
+                <span className="text-xs font-bold text-deepSlate-600">C$</span>
                 <input
                   type="number"
                   step="0.01"
@@ -236,18 +237,18 @@ export const AppLayout: React.FC = () => {
                     if (e.key === 'Enter') saveRate();
                     if (e.key === 'Escape') setEditingRate(false);
                   }}
-                  className="w-20 text-xs font-bold text-coral-600 focus:outline-none"
+                  className="w-16 sm:w-20 text-xs font-bold text-coral-600 focus:outline-none"
                 />
                 <button
                   onClick={saveRate}
-                  className="p-1 rounded bg-coral-500 text-white"
+                  className="p-1.5 rounded bg-coral-500 text-white"
                   title="Guardar"
                 >
                   <Check className="w-3 h-3" />
                 </button>
                 <button
                   onClick={() => setEditingRate(false)}
-                  className="p-1 text-deepSlate-400"
+                  className="p-1.5 text-deepSlate-400"
                   title="Cancelar"
                 >
                   <X className="w-3 h-3" />
@@ -266,22 +267,23 @@ export const AppLayout: React.FC = () => {
                     ? 'Toca para cambiar el precio del dólar'
                     : 'Tasa de cambio configurada por el dueño'
                 }
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold ${
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-semibold whitespace-nowrap ${
                   isOwner
                     ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
                     : 'bg-nacre-50 text-deepSlate-600 border-nacre-200 cursor-default'
                 }`}
               >
-                <span>Dólar hoy:</span>
+                <span className="hidden xs:inline sm:inline">Dólar hoy:</span>
+                <span className="xs:hidden sm:hidden">USD:</span>
                 <span className="font-extrabold">
                   C$ {Number(tenant?.exchange_rate_nio ?? 36.62).toFixed(2)}
                 </span>
-                {isOwner && <Edit2 className="w-3 h-3 opacity-60" />}
+                {isOwner && <Edit2 className="w-3 h-3 opacity-60 shrink-0" />}
               </button>
             )}
             <button
               onClick={logout}
-              className="md:hidden p-2 rounded-lg text-deepSlate-500 hover:text-rose-600"
+              className="md:hidden min-w-[40px] min-h-[40px] p-2 rounded-lg text-deepSlate-500 hover:text-rose-600 flex items-center justify-center shrink-0"
               aria-label="Cerrar sesión"
             >
               <LogOut className="w-4 h-4" />
@@ -301,14 +303,14 @@ export const AppLayout: React.FC = () => {
                 }}
                 className="w-full flex items-center justify-center gap-2 py-2.5 px-3 text-xs font-bold text-coral-600 bg-coral-50 border border-coral-200 rounded-xl"
               >
-                <Palette className="w-4 h-4" />
+                <Palette className="w-4 h-4 shrink-0" />
                 <span>Estilizar tienda y tema</span>
               </button>
             )}
           </div>
         )}
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
           <Outlet />
         </main>
       </div>

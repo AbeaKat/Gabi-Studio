@@ -142,17 +142,17 @@ export const LoginPage: React.FC = () => {
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-coral-400/10 blur-[120px] rounded-full pointer-events-none"></div>
 
       {/* Back to Home Link */}
-      <div className="absolute top-6 left-6 z-20">
+      <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-20">
         <Link
           to="/"
           className="inline-flex items-center space-x-1.5 text-xs font-semibold text-deepSlate-600 hover:text-coral-500 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full border border-nacre-200 shadow-sm transition-colors"
         >
-          <ArrowLeft className="w-3.5 h-3.5" />
+          <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
           <span>Volver al inicio</span>
         </Link>
       </div>
 
-      <div className="max-w-5xl w-full mx-auto relative z-10 pt-8">
+      <div className="max-w-5xl w-full mx-auto relative z-10 pt-10 sm:pt-8">
         {/* Brand Heading */}
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center space-x-2.5 group mb-3">
@@ -303,10 +303,10 @@ export const LoginPage: React.FC = () => {
                 return (
                   <div
                     key={preset.id}
-                    className="bg-white rounded-3xl border border-nacre-200 p-5 shadow-sm hover:border-coral-300 transition-all flex flex-col justify-between"
+                    className="bg-white rounded-3xl border border-nacre-200 p-4 sm:p-5 shadow-sm hover:border-coral-300 transition-all flex flex-col justify-between min-w-0"
                   >
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between gap-2">
+                    <div className="space-y-2.5 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
                         <span
                           className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
                             preset.plan_tier === 3 && isOwnerAccount
@@ -324,18 +324,18 @@ export const LoginPage: React.FC = () => {
                             setIdentifier(displayUsername);
                             setPassword(preset.password);
                           }}
-                          className="text-[10px] font-bold text-coral-600 hover:underline"
+                          className="text-[10px] font-bold text-coral-600 hover:underline shrink-0"
                         >
                           Rellenar login
                         </button>
                       </div>
 
-                      <h3 className="text-sm font-extrabold text-deepSlate-900">{preset.label}</h3>
-                      <p className="text-[11px] text-deepSlate-500 leading-relaxed">
+                      <h3 className="text-sm font-extrabold text-deepSlate-900 break-words">{preset.label}</h3>
+                      <p className="text-[11px] text-deepSlate-500 leading-relaxed break-words">
                         {preset.description}
                       </p>
 
-                      <div className="p-2.5 rounded-xl bg-nacre-50 border border-nacre-200 font-mono text-[11px] space-y-0.5">
+                      <div className="p-2.5 rounded-xl bg-nacre-50 border border-nacre-200 font-mono text-[11px] space-y-0.5 min-w-0">
                         <div className="truncate">
                           <span className="text-deepSlate-400">Usuario: </span>
                           <strong className="text-deepSlate-900">@{displayUsername}</strong>
@@ -344,7 +344,7 @@ export const LoginPage: React.FC = () => {
                           <span className="text-deepSlate-400">Correo: </span>
                           <span className="text-deepSlate-700">{preset.email}</span>
                         </div>
-                        <div>
+                        <div className="truncate">
                           <span className="text-deepSlate-400">Clave inicial: </span>
                           <strong className="text-coral-600">{preset.password}</strong>
                         </div>
@@ -357,7 +357,7 @@ export const LoginPage: React.FC = () => {
                             className="text-[11px] text-deepSlate-600 flex items-start space-x-1.5"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                            <span>{h}</span>
+                            <span className="break-words">{h}</span>
                           </li>
                         ))}
                       </ul>
@@ -368,10 +368,10 @@ export const LoginPage: React.FC = () => {
                         type="button"
                         disabled={isSubmitting}
                         onClick={() => handleDirectAccountLogin(preset, false)}
-                        className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-deepSlate-900 hover:bg-coral-500 transition-colors flex items-center justify-center space-x-1.5 disabled:opacity-60"
+                        className="w-full min-h-[42px] py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-deepSlate-900 hover:bg-coral-500 transition-colors flex items-center justify-center gap-1.5 text-center disabled:opacity-60"
                       >
-                        <span>Entrar con @{displayUsername}</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
+                        <span className="break-all">Entrar con @{displayUsername}</span>
+                        <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                       </button>
 
                       {isOwnerAccount && (
@@ -379,10 +379,10 @@ export const LoginPage: React.FC = () => {
                           type="button"
                           disabled={isSubmitting}
                           onClick={() => handleDirectAccountLogin(preset, true)}
-                          className="w-full py-1.5 px-3 rounded-xl text-[11px] font-bold text-coral-600 bg-coral-50 hover:bg-coral-100 border border-coral-200 transition-colors flex items-center justify-center space-x-1.5 disabled:opacity-60"
+                          className="w-full min-h-[38px] py-2 px-3 rounded-xl text-[11px] font-bold text-coral-600 bg-coral-50 hover:bg-coral-100 border border-coral-200 transition-colors flex items-center justify-center gap-1.5 text-center leading-tight disabled:opacity-60"
                         >
-                          <RotateCcw className="w-3 h-3" />
-                          <span>Entrar como 1er inicio de sesión (Onboarding)</span>
+                          <RotateCcw className="w-3 h-3 shrink-0" />
+                          <span>Entrar como 1er inicio de sesión</span>
                         </button>
                       )}
                     </div>

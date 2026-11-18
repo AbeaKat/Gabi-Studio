@@ -323,72 +323,72 @@ export const InventoryPage: React.FC = () => {
   ];
 
   const btnSecondary =
-    'min-h-[48px] inline-flex items-center justify-center gap-2 px-4 rounded-xl text-sm font-bold bg-white hover:bg-nacre-100 text-deepSlate-700 border border-nacre-200';
+    'min-h-[48px] flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 rounded-xl text-xs sm:text-sm font-bold bg-white hover:bg-nacre-100 text-deepSlate-700 border border-nacre-200 text-center';
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-5 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-5 max-w-6xl mx-auto w-full min-w-0">
       {/* Título y acciones */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="min-w-0">
           <h1 className="text-2xl sm:text-3xl font-extrabold text-deepSlate-900 tracking-tight">Mis productos</h1>
           <p className="text-sm text-deepSlate-500 mt-1">
             Lo que tienes y cuánto queda. Toca un precio o una cantidad para cambiarlo.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
           <button
             onClick={() => setIsNewProductOpen(true)}
-            className="min-h-[52px] inline-flex items-center justify-center gap-2 px-6 rounded-xl text-base font-bold text-white bg-coral-500 hover:bg-coral-600 shadow-md shadow-coral-500/25 active:scale-95 transition-all w-full sm:w-auto"
+            className="min-h-[50px] inline-flex items-center justify-center gap-2 px-5 rounded-xl text-sm sm:text-base font-bold text-white bg-coral-500 hover:bg-coral-600 shadow-md shadow-coral-500/25 active:scale-95 transition-all w-full sm:w-auto"
           >
-            <Plus className="w-5 h-5 stroke-[2.5]" />
-            Agregar producto
+            <Plus className="w-5 h-5 stroke-[2.5] shrink-0" />
+            <span>Agregar producto</span>
           </button>
           <button onClick={() => setIsImportModalOpen(true)} className={btnSecondary}>
-            <Upload className="w-4 h-4 text-coral-500" />
-            Subir lista de Excel
+            <Upload className="w-4 h-4 text-coral-500 shrink-0" />
+            <span>Subir lista de Excel</span>
           </button>
           <button onClick={handleExportExcel} className={btnSecondary} disabled={products.length === 0}>
-            <Download className="w-4 h-4 text-emerald-600" />
-            Descargar
+            <Download className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>Descargar</span>
           </button>
         </div>
       </div>
 
       {/* Resumen */}
       {products.length > 0 && (
-        <div className={`grid grid-cols-2 ${isOwner ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-3`}>
-          <div className="bg-white rounded-2xl border border-nacre-200 p-4">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${isOwner ? 'xl:grid-cols-4' : 'lg:grid-cols-3'} gap-3`}>
+          <div className="bg-white rounded-2xl border border-nacre-200 p-4 min-w-0">
             <div className="flex items-center gap-2 text-sm font-bold text-deepSlate-500">
-              <Package className="w-4 h-4 text-coral-500" /> Tienes
+              <Package className="w-4 h-4 text-coral-500 shrink-0" /> <span>Tienes</span>
             </div>
-            <p className="text-2xl font-extrabold text-deepSlate-900 mt-1">{totalUnits.toLocaleString('es-NI')}</p>
+            <p className="text-2xl font-extrabold text-deepSlate-900 mt-1 break-words">{totalUnits.toLocaleString('es-NI')}</p>
             <p className="text-sm text-deepSlate-500">piezas en {products.length} productos</p>
           </div>
           <button
             onClick={() => setQuickFilter(outCount > 0 ? 'out' : 'low')}
-            className="bg-white rounded-2xl border border-nacre-200 p-4 text-left hover:border-amber-300"
+            className="bg-white rounded-2xl border border-nacre-200 p-4 text-left hover:border-amber-300 min-w-0"
           >
             <div className="flex items-center gap-2 text-sm font-bold text-deepSlate-500">
-              <AlertTriangle className="w-4 h-4 text-amber-500" /> Necesitan atención
+              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" /> <span>Necesitan atención</span>
             </div>
             <p className="text-2xl font-extrabold text-deepSlate-900 mt-1">{lowCount + outCount}</p>
             <p className="text-sm text-deepSlate-500">
               {outCount} agotados · {lowCount} con pocos
             </p>
           </button>
-          <div className="bg-white rounded-2xl border border-nacre-200 p-4">
+          <div className="bg-white rounded-2xl border border-nacre-200 p-4 min-w-0">
             <div className="flex items-center gap-2 text-sm font-bold text-deepSlate-500">
-              <Coins className="w-4 h-4 text-coral-500" /> Si vendes todo
+              <Coins className="w-4 h-4 text-coral-500 shrink-0" /> <span>Si vendes todo</span>
             </div>
-            <p className="text-2xl font-extrabold text-coral-600 mt-1">{fmtNio(stockSaleNio, 0)}</p>
+            <p className="text-2xl font-extrabold text-coral-600 mt-1 break-words">{fmtNio(stockSaleNio, 0)}</p>
             <p className="text-sm text-deepSlate-500">a los precios de hoy</p>
           </div>
           {isOwner && (
-            <div className="bg-white rounded-2xl border border-nacre-200 p-4">
+            <div className="bg-white rounded-2xl border border-nacre-200 p-4 min-w-0">
               <div className="flex items-center gap-2 text-sm font-bold text-deepSlate-500">
-                <PiggyBank className="w-4 h-4 text-emerald-600" /> Invertido en mercadería
+                <PiggyBank className="w-4 h-4 text-emerald-600 shrink-0" /> <span>Invertido en mercadería</span>
               </div>
-              <p className="text-2xl font-extrabold text-deepSlate-900 mt-1">{fmtNio(stockCostNio, 0)}</p>
+              <p className="text-2xl font-extrabold text-deepSlate-900 mt-1 break-words">{fmtNio(stockCostNio, 0)}</p>
               <p className="text-sm text-deepSlate-500">
                 Ganarías {fmtNio(stockSaleNio - stockCostNio, 0)}
               </p>

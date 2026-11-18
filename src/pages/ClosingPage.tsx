@@ -179,10 +179,10 @@ export const ClosingPage: React.FC = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto space-y-6 w-full min-w-0">
       {/* Encabezado principal con llamado claro a "Anotar una venta" */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-3xl border border-nacre-200 p-5 sm:p-6 shadow-2xs">
-        <div className="space-y-1">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-3xl border border-nacre-200 p-4 sm:p-6 shadow-2xs">
+        <div className="space-y-1 min-w-0">
           <h1 className="text-2xl sm:text-3xl font-extrabold text-deepSlate-900 tracking-tight">
             Mis ventas
           </h1>
@@ -194,9 +194,9 @@ export const ClosingPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsQuickSaleOpen(true)}
-          className="min-h-[54px] px-6 py-3.5 rounded-2xl text-base font-extrabold text-white bg-coral-500 hover:bg-coral-600 shadow-md shadow-coral-500/25 active:scale-[0.99] transition-all inline-flex items-center justify-center gap-2.5 shrink-0"
+          className="w-full sm:w-auto min-h-[54px] px-6 py-3.5 rounded-2xl text-base font-extrabold text-white bg-coral-500 hover:bg-coral-600 shadow-md shadow-coral-500/25 active:scale-[0.99] transition-all inline-flex items-center justify-center gap-2.5 shrink-0"
         >
-          <PlusCircle className="w-6 h-6" />
+          <PlusCircle className="w-6 h-6 shrink-0" />
           <span>Anotar una venta</span>
         </button>
       </div>
@@ -222,13 +222,13 @@ export const ClosingPage: React.FC = () => {
       )}
 
       {/* Tarjetas de resumen en lenguaje simple (sin costos ni ganancias para vendedores) */}
-      <div className={`grid grid-cols-1 sm:grid-cols-2 ${isOwner ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4`}>
-        <div className="bg-white rounded-2xl border border-nacre-200 p-4 sm:p-5 shadow-2xs space-y-1">
-          <div className="flex items-center justify-between text-sm font-bold text-deepSlate-600">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${isOwner ? 'xl:grid-cols-4' : 'lg:grid-cols-3'} gap-4`}>
+        <div className="bg-white rounded-2xl border border-nacre-200 p-4 sm:p-5 shadow-2xs space-y-1 min-w-0">
+          <div className="flex items-center justify-between gap-2 text-sm font-bold text-deepSlate-600">
             <span>Vendido hoy</span>
-            <ShoppingBag className="w-5 h-5 text-coral-500" />
+            <ShoppingBag className="w-5 h-5 text-coral-500 shrink-0" />
           </div>
-          <p className="text-2xl sm:text-3xl font-extrabold text-coral-600">
+          <p className="text-2xl sm:text-3xl font-extrabold text-coral-600 break-words">
             {money(summary.todayTotalNio)}
           </p>
           <p className="text-sm text-deepSlate-500">
@@ -238,12 +238,12 @@ export const ClosingPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-nacre-200 p-4 sm:p-5 shadow-2xs space-y-1">
-          <div className="flex items-center justify-between text-sm font-bold text-deepSlate-600">
+        <div className="bg-white rounded-2xl border border-nacre-200 p-4 sm:p-5 shadow-2xs space-y-1 min-w-0">
+          <div className="flex items-center justify-between gap-2 text-sm font-bold text-deepSlate-600">
             <span>Vendido este mes</span>
-            <CalendarCheck className="w-5 h-5 text-indigo-500" />
+            <CalendarCheck className="w-5 h-5 text-indigo-500 shrink-0" />
           </div>
-          <p className="text-2xl sm:text-3xl font-extrabold text-deepSlate-900">
+          <p className="text-2xl sm:text-3xl font-extrabold text-deepSlate-900 break-words">
             {money(summary.monthTotalNio)}
           </p>
           <p className="text-sm text-deepSlate-500">
@@ -251,12 +251,12 @@ export const ClosingPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-nacre-200 p-4 sm:p-5 shadow-2xs space-y-1">
-          <div className="flex items-center justify-between text-sm font-bold text-deepSlate-600">
+        <div className="bg-white rounded-2xl border border-nacre-200 p-4 sm:p-5 shadow-2xs space-y-1 min-w-0">
+          <div className="flex items-center justify-between gap-2 text-sm font-bold text-deepSlate-600">
             <span>Pagos pendientes</span>
-            <Clock className="w-5 h-5 text-amber-600" />
+            <Clock className="w-5 h-5 text-amber-600 shrink-0" />
           </div>
-          <p className="text-2xl sm:text-3xl font-extrabold text-amber-700">
+          <p className="text-2xl sm:text-3xl font-extrabold text-amber-700 break-words">
             {money(summary.totalDueNio)}
           </p>
           {summary.debtSalesCount > 0 ? (
@@ -273,12 +273,12 @@ export const ClosingPage: React.FC = () => {
         </div>
 
         {isOwner && (
-          <div className="bg-white rounded-2xl border border-nacre-200 p-4 sm:p-5 shadow-2xs space-y-1">
-            <div className="flex items-center justify-between text-sm font-bold text-emerald-800">
+          <div className="bg-white rounded-2xl border border-nacre-200 p-4 sm:p-5 shadow-2xs space-y-1 min-w-0">
+            <div className="flex items-center justify-between gap-2 text-sm font-bold text-emerald-800">
               <span>Ganancia acumulada</span>
-              <TrendingUp className="w-5 h-5 text-emerald-600" />
+              <TrendingUp className="w-5 h-5 text-emerald-600 shrink-0" />
             </div>
-            <p className="text-2xl sm:text-3xl font-extrabold text-emerald-600">
+            <p className="text-2xl sm:text-3xl font-extrabold text-emerald-600 break-words">
               {money(summary.totalProfitNio)}
             </p>
             <p className="text-sm text-deepSlate-500">

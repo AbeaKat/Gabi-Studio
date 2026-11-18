@@ -222,8 +222,8 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({
                 </p>
               </header>
 
-              {/* Tabla (pantallas medianas y grandes) */}
-              <div className="hidden md:block overflow-x-auto">
+              {/* Tabla (pantallas grandes) */}
+              <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead className="text-deepSlate-600 font-bold border-b border-nacre-100 bg-nacre-50/40">
                     <tr>
@@ -293,14 +293,14 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({
                 </table>
               </div>
 
-              {/* Tarjetas (móvil) */}
-              <ul className="md:hidden divide-y divide-nacre-100">
+              {/* Tarjetas (móvil y tablet) */}
+              <ul className="lg:hidden divide-y divide-nacre-100">
                 {dayRows.map((r) => (
-                  <li key={r.item.id} className="p-4 space-y-2.5">
+                  <li key={r.item.id} className="p-4 space-y-2.5 min-w-0">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-base font-extrabold text-deepSlate-900">{r.name}</p>
-                        <p className="text-sm text-deepSlate-500">
+                        <p className="text-base font-extrabold text-deepSlate-900 break-words">{r.name}</p>
+                        <p className="text-sm text-deepSlate-500 break-words">
                           {r.item.quantity} {r.item.quantity === 1 ? 'unidad' : 'unidades'} · Código {r.code}
                         </p>
                       </div>
@@ -315,7 +315,7 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({
                     </div>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-deepSlate-600">
                       <span className="font-semibold text-deepSlate-700">{getPaymentMethodLabel(r.method)}</span>
-                      {r.customer && <span>· Cliente: {r.customer}</span>}
+                      {r.customer && <span className="break-words">· Cliente: {r.customer}</span>}
                       {isOwner && (
                         <span className="text-emerald-700 font-bold">· Ganancia {money(profitNio(r))}</span>
                       )}
@@ -326,9 +326,9 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({
                         <button
                           type="button"
                           onClick={() => onRegisterAbono(r)}
-                          className="min-h-[44px] px-4 inline-flex items-center gap-2 rounded-xl text-sm font-bold text-coral-600 bg-coral-50 hover:bg-coral-100 border border-coral-200"
+                          className="min-h-[44px] px-4 inline-flex items-center justify-center gap-2 rounded-xl text-sm font-bold text-coral-600 bg-coral-50 hover:bg-coral-100 border border-coral-200 w-full sm:w-auto"
                         >
-                          <HandCoins className="w-4 h-4" />
+                          <HandCoins className="w-4 h-4 shrink-0" />
                           <span>Registrar abono</span>
                         </button>
                       )}

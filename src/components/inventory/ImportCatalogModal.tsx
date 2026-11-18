@@ -384,14 +384,14 @@ export const ImportCatalogModal: React.FC<ImportCatalogModalProps> = ({
                 </button>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
                 <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-3 text-center">
                   <p className="text-2xl font-extrabold text-emerald-700">{newCount}</p>
-                  <p className="text-sm text-emerald-800">Productos nuevos</p>
+                  <p className="text-xs sm:text-sm text-emerald-800 font-semibold">Productos nuevos</p>
                 </div>
                 <div className="rounded-2xl bg-coral-50 border border-coral-200 p-3 text-center">
                   <p className="text-2xl font-extrabold text-coral-700">{updCount}</p>
-                  <p className="text-sm text-coral-800">Se actualizan</p>
+                  <p className="text-xs sm:text-sm text-coral-800 font-semibold">Se actualizan</p>
                 </div>
                 <div
                   className={`rounded-2xl border p-3 text-center ${
@@ -401,7 +401,7 @@ export const ImportCatalogModal: React.FC<ImportCatalogModalProps> = ({
                   <p className={`text-2xl font-extrabold ${invalid.length > 0 ? 'text-rose-700' : 'text-deepSlate-400'}`}>
                     {invalid.length}
                   </p>
-                  <p className={`text-sm ${invalid.length > 0 ? 'text-rose-800' : 'text-deepSlate-500'}`}>
+                  <p className={`text-xs sm:text-sm font-semibold ${invalid.length > 0 ? 'text-rose-800' : 'text-deepSlate-500'}`}>
                     Con problema
                   </p>
                 </div>

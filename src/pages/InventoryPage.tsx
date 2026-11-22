@@ -252,7 +252,10 @@ export const InventoryPage: React.FC = () => {
       saveStoredPriceHistory([...newPriceHistoryEntries, ...getStoredPriceHistory()]);
     }
 
-    await syncStoreDataToSupabaseCloudNow(tenant?.id || TENANT_STELLA_ID, false);
+    const synced = await syncStoreDataToSupabaseCloudNow(tenant?.id || TENANT_STELLA_ID, false);
+    if (!synced) {
+      throw new Error('No se pudo guardar en Supabase. Se guardó solo en este navegador.');
+    }
   };
 
   const handleExportExcel = () => {

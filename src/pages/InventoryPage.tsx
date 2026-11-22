@@ -17,6 +17,7 @@ import {
   getStoredPriceHistory,
   saveStoredPriceHistory,
   ensureRealInventorySeeded,
+  syncStoreDataToSupabaseCloudNow,
   TENANT_STELLA_ID,
 } from '../data/realInventoryData';
 
@@ -46,6 +47,9 @@ export const InventoryPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    const onHydrated = () => loadData();
+    window.addEventListener('gabi-store-hydrated', onHydrated);
+    return () => window.removeEventListener('gabi-store-hydrated', onHydrated);
   }, [tenant?.id]);
 
   const loadData = async () => {
@@ -247,6 +251,8 @@ export const InventoryPage: React.FC = () => {
     if (newPriceHistoryEntries.length > 0) {
       saveStoredPriceHistory([...newPriceHistoryEntries, ...getStoredPriceHistory()]);
     }
+
+    await syncStoreDataToSupabaseCloudNow(tenant?.id || TENANT_STELLA_ID, false);
   };
 
   const handleExportExcel = () => {

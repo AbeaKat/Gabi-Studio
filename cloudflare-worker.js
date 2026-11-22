@@ -29,13 +29,15 @@ export default {
       const hasBody = method !== 'GET' && method !== 'HEAD';
 
       try {
+        const bodyBuffer = hasBody ? await request.arrayBuffer() : undefined;
         const response = await fetch(targetUrl, {
           method,
           headers: forwardHeaders,
-          body: hasBody ? request.body : undefined,
+          body: hasBody && bodyBuffer && bodyBuffer.byteLength > 0 ? bodyBuffer : undefined,
         });
 
         const respHeaders = new Headers(response.headers);
+        respHeaders.set('Cache-Control', 'no-store, no-cache, must-revalidate');
         return new Response(response.body, {
           status: response.status,
           headers: respHeaders,

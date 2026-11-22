@@ -101,6 +101,18 @@ export const ImportCatalogModal: React.FC<ImportCatalogModalProps> = ({
 
   const normalizeKey = (key: string) => key.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
 
+  const parseSpreadsheetNumber = (val: unknown): number => {
+    if (typeof val === 'number') return Number.isFinite(val) ? val : 0;
+    let s = String(val ?? '').trim().replace(/(?:us\$|c\$|\$|\s)/gi, '');
+    if (/^-?\d+,\d{1,2}$/.test(s)) {
+      s = s.replace(',', '.');
+    } else {
+      s = s.replace(/,/g, '');
+    }
+    const num = parseFloat(s);
+    return Number.isFinite(num) ? num : 0;
+  };
+
   const parseRows = (rawRows: any[]) => {
     const rows: ParsedRow[] = [];
     const seenSkus = new Set<string>();
@@ -123,34 +135,44 @@ export const ImportCatalogModal: React.FC<ImportCatalogModalProps> = ({
       ).trim();
 
       const rawStock =
-        n['stock'] || n['cantidad'] || n['cant'] || n['qty'] || n['existencias'] || 1;
+        n['stock'] ?? n['cantidad'] ?? n['cant'] ?? n['qty'] ?? n['existencias'] ?? 1;
       const stock = Math.max(0, parseInt(String(rawStock), 10) || 0);
 
-      const costUsd = Math.max(
-        0,
-        parseFloat(
-          String(n['costo'] || n['costousd'] || n['cost'] || n['costobase'] || n['unitcost'] || 0)
-        ) || 0
-      );
-      const priceUsd = Math.max(
-        0,
-        parseFloat(
-          String(n['precio'] || n['preciousd'] || n['price'] || n['precioventa'] || n['pvp'] || 0)
-        ) || 0
-      );
-      let priceNio =
-        parseFloat(
-          String(
-            n['precionic'] ||
-              n['precionio'] ||
-              n['cordobas'] ||
-              n['preciocordobas'] ||
-              n['precioc'] ||
-              n['precioc$'] ||
-              0
-          )
-        ) || 0;
-      if (priceNio === 0 && priceUsd > 0) priceNio = Math.round(priceUsd * exchangeRate * 100) / 100;
+      const rawCostVal =
+        n['costo'] ??
+        n['costous'] ??
+        n['costousd'] ??
+        n['cost'] ??
+        n['costobase'] ??
+        n['costounitario'] ??
+        n['unitcost'] ??
+        0;
+      const costUsd = Math.max(0, parseSpreadsheetNumber(rawCostVal));
+
+      const rawPriceUsdVal =
+        n['precio'] ??
+        n['precious'] ??
+        n['preciousd'] ??
+        n['price'] ??
+        n['precioventa'] ??
+        n['pvp'] ??
+        0;
+      let priceUsd = Math.max(0, parseSpreadsheetNumber(rawPriceUsdVal));
+
+      const rawPriceNioVal =
+        n['precionic'] ??
+        n['precionio'] ??
+        n['cordobas'] ??
+        n['preciocordobas'] ??
+        n['precioc'] ??
+        0;
+      let priceNio = Math.max(0, parseSpreadsheetNumber(rawPriceNioVal));
+
+      if (priceNio === 0 && priceUsd > 0) {
+        priceNio = Math.round(priceUsd * exchangeRate * 100) / 100;
+      } else if (priceUsd === 0 && priceNio > 0 && exchangeRate > 0) {
+        priceUsd = Math.round((priceNio / exchangeRate) * 100) / 100;
+      }
 
       let isValid = true;
       let err = '';

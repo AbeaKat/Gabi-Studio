@@ -144,6 +144,7 @@ export const INITIAL_TEAM_PROFILES: Profile[] = [
 // ============================================================================
 export const STORAGE_KEYS = {
   DATA_VERSION: 'gabi_studio_data_version',
+  UPDATED_AT: 'gabi_studio_updated_at',
   PRODUCTS: 'gabi_studio_products',
   BATCHES: 'gabi_studio_batches',
   SALES_HEADERS: 'gabi_studio_sales_headers',
@@ -159,37 +160,75 @@ const CURRENT_DATA_VERSION = 'gabi-studio-empty-v1';
 let activeCloudTenantId: string = TENANT_STELLA_ID;
 let cloudSyncTimer: ReturnType<typeof setTimeout> | null = null;
 
+function touchLocalUpdatedAt(): string {
+  const nowIso = new Date().toISOString();
+  localStorage.setItem(STORAGE_KEYS.UPDATED_AT, nowIso);
+  return nowIso;
+}
+
 export function setActiveCloudTenantId(tenantId: string): void {
   if (tenantId) {
     activeCloudTenantId = tenantId;
   }
 }
 
-export function pushStoreDataToSupabaseCloud(tenantId = activeCloudTenantId): void {
-  if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
-  cloudSyncTimer = setTimeout(async () => {
-    try {
-      const payload = {
-        updated_at: new Date().toISOString(),
-        products: getStoredProducts(),
-        batches: getStoredBatches(),
-        sales_headers: getStoredSalesHeaders(),
-        sales_items: getStoredSalesItems(),
-        price_history: getStoredPriceHistory(),
-        expenses: getStoredExpenses(),
-        kardex: getStoredKardex(),
-      };
-      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-      await supabaseAdmin.storage
-        .from('tenant-data')
-        .upload(`tenants/${tenantId}/store-data.json`, blob, {
-          upsert: true,
-          contentType: 'application/json',
-        });
-    } catch {
-      // Ignore network error
+export async function syncStoreDataToSupabaseCloudNow(
+  tenantId = activeCloudTenantId,
+  explicitlyCleared = false
+): Promise<boolean> {
+  if (cloudSyncTimer) {
+    clearTimeout(cloudSyncTimer);
+    cloudSyncTimer = null;
+  }
+  try {
+    const updatedAt = localStorage.getItem(STORAGE_KEYS.UPDATED_AT) || touchLocalUpdatedAt();
+    const payload = {
+      updated_at: updatedAt,
+      explicitly_cleared: explicitlyCleared,
+      products: getStoredProducts(),
+      batches: getStoredBatches(),
+      sales_headers: getStoredSalesHeaders(),
+      sales_items: getStoredSalesItems(),
+      price_history: getStoredPriceHistory(),
+      expenses: getStoredExpenses(),
+      kardex: getStoredKardex(),
+    };
+    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+    const { error } = await supabaseAdmin.storage
+      .from('tenant-data')
+      .upload(`tenants/${tenantId}/store-data.json`, blob, {
+        upsert: true,
+        cacheControl: '0',
+        contentType: 'application/json',
+      });
+    if (error) {
+      console.warn('Error subiendo store-data.json a Supabase Storage:', error.message);
+      return false;
     }
-  }, 350);
+    return true;
+  } catch (err) {
+    console.warn('Error de red sincronizando con Supabase Storage:', err);
+    return false;
+  }
+}
+
+export function pushStoreDataToSupabaseCloud(tenantId = activeCloudTenantId): void {
+  touchLocalUpdatedAt();
+  if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
+  cloudSyncTimer = setTimeout(() => {
+    void syncStoreDataToSupabaseCloudNow(tenantId, false);
+  }, 250);
+}
+
+export async function clearAllCatalogData(tenantId = activeCloudTenantId): Promise<boolean> {
+  localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.BATCHES, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.PRICE_HISTORY, JSON.stringify([]));
+  touchLocalUpdatedAt();
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('gabi-store-hydrated'));
+  }
+  return syncStoreDataToSupabaseCloudNow(tenantId, true);
 }
 
 export async function hydrateStoreFromSupabaseCloud(
@@ -205,9 +244,45 @@ export async function hydrateStoreFromSupabaseCloud(
     if (!error && blob) {
       const text = await blob.text();
       const parsed = JSON.parse(text);
-      if (Array.isArray(parsed.products)) {
-        localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(parsed.products));
+      if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.products)) {
+        await syncStoreDataToSupabaseCloudNow(tenantId, false);
+        return;
       }
+
+      const cloudProductsLen = parsed.products.length;
+      const cloudBatchesLen = Array.isArray(parsed.batches) ? parsed.batches.length : 0;
+      const cloudSalesLen = Array.isArray(parsed.sales_headers) ? parsed.sales_headers.length : 0;
+      const isCloudCompletelyEmpty =
+        cloudProductsLen === 0 && cloudBatchesLen === 0 && cloudSalesLen === 0;
+
+      const localProducts = getStoredProducts();
+      const localUpdatedAt = localStorage.getItem(STORAGE_KEYS.UPDATED_AT) || '';
+      const cloudUpdatedAt = typeof parsed.updated_at === 'string' ? parsed.updated_at : '';
+
+      // Si la nube aún tiene el archivo inicial vacío pero el navegador tiene datos locales más recientes,
+      // subimos los datos locales a la nube en vez de borrarlos.
+      if (
+        isCloudCompletelyEmpty &&
+        !parsed.explicitly_cleared &&
+        localProducts.length > 0
+      ) {
+        await syncStoreDataToSupabaseCloudNow(tenantId, false);
+        return;
+      }
+
+      // Si el navegador tiene cambios locales más recientes que la nube (y la nube no fue formateada explícitamente después),
+      // subimos la versión local más reciente.
+      if (
+        localUpdatedAt &&
+        cloudUpdatedAt &&
+        localUpdatedAt > cloudUpdatedAt &&
+        !parsed.explicitly_cleared
+      ) {
+        await syncStoreDataToSupabaseCloudNow(tenantId, false);
+        return;
+      }
+
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(parsed.products));
       if (Array.isArray(parsed.batches)) {
         localStorage.setItem(STORAGE_KEYS.BATCHES, JSON.stringify(parsed.batches));
       }
@@ -226,9 +301,15 @@ export async function hydrateStoreFromSupabaseCloud(
       if (Array.isArray(parsed.kardex)) {
         localStorage.setItem(STORAGE_KEYS.KARDEX, JSON.stringify(parsed.kardex));
       }
+      if (cloudUpdatedAt) {
+        localStorage.setItem(STORAGE_KEYS.UPDATED_AT, cloudUpdatedAt);
+      }
       localStorage.setItem(STORAGE_KEYS.DATA_VERSION, CURRENT_DATA_VERSION);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('gabi-store-hydrated'));
+      }
     } else {
-      pushStoreDataToSupabaseCloud(tenantId);
+      await syncStoreDataToSupabaseCloudNow(tenantId, false);
     }
   } catch {
     // Fallback to local cache

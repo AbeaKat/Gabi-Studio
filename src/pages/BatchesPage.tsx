@@ -73,6 +73,9 @@ export const BatchesPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    const onHydrated = () => loadData();
+    window.addEventListener('gabi-store-hydrated', onHydrated);
+    return () => window.removeEventListener('gabi-store-hydrated', onHydrated);
   }, []);
 
   useEffect(() => {
@@ -171,12 +174,13 @@ export const BatchesPage: React.FC = () => {
 
     // Precio sugerido para ganar targetMarginPct% sobre el precio de venta:
     // precio = costo / (1 - margen)
+    const hasValidCost = newLanded > 0;
     const safeMarginRatio = Math.min(0.85, Math.max(0.05, targetMarginPct / 100));
-    const suggestedUsd = round2(newLanded / (1 - safeMarginRatio));
+    const suggestedUsdRaw = hasValidCost ? round2(newLanded / (1 - safeMarginRatio)) : 0;
     // Redondear a múltiplos de 5 córdobas para que sea un precio comercial limpio
-    const rawSuggestedNio = suggestedUsd * exchangeRate;
-    const suggestedNio = Math.max(5, Math.ceil(rawSuggestedNio / 5) * 5);
-    const suggestedProfitNio = round2(suggestedNio - newLandedNio);
+    const rawSuggestedNio = suggestedUsdRaw * exchangeRate;
+    const suggestedNio = hasValidCost ? Math.max(5, Math.ceil(rawSuggestedNio / 5) * 5) : 0;
+    const suggestedProfitNio = hasValidCost ? round2(suggestedNio - newLandedNio) : 0;
 
     return {
       product: p,
@@ -188,7 +192,8 @@ export const BatchesPage: React.FC = () => {
       newLandedNio,
       currentProfitNio,
       marginPct,
-      suggestedUsd: round2(suggestedNio / exchangeRate),
+      hasValidCost,
+      suggestedUsd: hasValidCost ? round2(suggestedNio / exchangeRate) : 0,
       suggestedNio,
       suggestedProfitNio,
     };
@@ -250,8 +255,9 @@ export const BatchesPage: React.FC = () => {
       if (!preview) return p;
 
       const oldLanded = p.landed_cost_usd || p.base_cost_usd;
-      const nextPriceNio = alsoUpdateSuggestedPrices ? preview.suggestedNio : p.price_nio;
-      const nextPriceUsd = alsoUpdateSuggestedPrices ? preview.suggestedUsd : p.price_usd;
+      const shouldUpdatePrice = alsoUpdateSuggestedPrices && preview.hasValidCost;
+      const nextPriceNio = shouldUpdatePrice ? preview.suggestedNio : p.price_nio;
+      const nextPriceUsd = shouldUpdatePrice ? preview.suggestedUsd : p.price_usd;
 
       const costChanged = Math.abs(oldLanded - preview.newLanded) >= 0.01;
       const priceChanged = Math.abs((p.price_nio || 0) - nextPriceNio) >= 0.5;
@@ -318,6 +324,7 @@ export const BatchesPage: React.FC = () => {
   };
 
   const handleApplySingleSuggestedPrice = (row: (typeof previewRows)[number]) => {
+    if (!row.hasValidCost) return;
     const nowIso = new Date().toISOString();
     const p = row.product;
     const oldCost = p.landed_cost_usd || p.base_cost_usd;
@@ -956,11 +963,14 @@ export const BatchesPage: React.FC = () => {
                               newLandedNio,
                               currentProfitNio,
                               marginPct,
+                              hasValidCost,
                               suggestedNio,
                               suggestedUsd,
                               suggestedProfitNio,
                             } = row;
                             const isJustSaved = savedProductId === p.id;
+                            const displayPriceUsd =
+                              p.price_usd > 0 ? p.price_usd : p.price_nio > 0 ? round2(p.price_nio / exchangeRate) : 0;
                             return (
                               <tr key={p.id} className="hover:bg-nacre-50/70">
                                 <td className="py-3 px-4 max-w-xs">
@@ -986,7 +996,7 @@ export const BatchesPage: React.FC = () => {
                                   <span className="font-bold text-deepSlate-900 block">
                                     {fmtNio(p.price_nio, 0)}{' '}
                                     <span className="text-xs text-deepSlate-400 font-normal">
-                                      ({fmtUsd(p.price_usd)})
+                                      ({fmtUsd(displayPriceUsd)})
                                     </span>
                                   </span>
                                   <span
@@ -1004,36 +1014,42 @@ export const BatchesPage: React.FC = () => {
                                   </span>
                                 </td>
                                 <td className="py-3 px-4 text-right">
-                                  <div className="inline-flex items-center justify-end gap-3">
-                                    <div>
-                                      <span className="font-extrabold text-coral-600 block">
-                                        Vender a {fmtNio(suggestedNio, 0)}{' '}
-                                        <span className="text-xs text-deepSlate-400 font-normal">
-                                          ({fmtUsd(suggestedUsd)})
+                                  {hasValidCost ? (
+                                    <div className="inline-flex items-center justify-end gap-3">
+                                      <div>
+                                        <span className="font-extrabold text-coral-600 block">
+                                          Vender a {fmtNio(suggestedNio, 0)}{' '}
+                                          <span className="text-xs text-deepSlate-400 font-normal">
+                                            ({fmtUsd(suggestedUsd)})
+                                          </span>
                                         </span>
-                                      </span>
-                                      <span className="text-xs text-emerald-700 font-semibold block">
-                                        Ganas {fmtNio(suggestedProfitNio, 0)} por pieza
-                                      </span>
+                                        <span className="text-xs text-emerald-700 font-semibold block">
+                                          Ganas {fmtNio(suggestedProfitNio, 0)} por pieza
+                                        </span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleApplySingleSuggestedPrice(row)}
+                                        className={`min-h-[40px] px-3 rounded-xl text-xs font-bold border transition-all ${
+                                          isJustSaved
+                                            ? 'bg-emerald-600 text-white border-emerald-600'
+                                            : 'bg-white hover:bg-coral-50 text-coral-600 border-coral-200'
+                                        }`}
+                                      >
+                                        {isJustSaved ? (
+                                          <span className="inline-flex items-center gap-1">
+                                            <Check className="w-3.5 h-3.5" /> Aplicado
+                                          </span>
+                                        ) : (
+                                          'Usar precio'
+                                        )}
+                                      </button>
                                     </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleApplySingleSuggestedPrice(row)}
-                                      className={`min-h-[40px] px-3 rounded-xl text-xs font-bold border transition-all ${
-                                        isJustSaved
-                                          ? 'bg-emerald-600 text-white border-emerald-600'
-                                          : 'bg-white hover:bg-coral-50 text-coral-600 border-coral-200'
-                                      }`}
-                                    >
-                                      {isJustSaved ? (
-                                        <span className="inline-flex items-center gap-1">
-                                          <Check className="w-3.5 h-3.5" /> Aplicado
-                                        </span>
-                                      ) : (
-                                        'Usar precio'
-                                      )}
-                                    </button>
-                                  </div>
+                                  ) : (
+                                    <span className="text-xs font-semibold text-deepSlate-400">
+                                      Sin costo registrado
+                                    </span>
+                                  )}
                                 </td>
                               </tr>
                             );
@@ -1054,6 +1070,7 @@ export const BatchesPage: React.FC = () => {
                         newLandedNio,
                         currentProfitNio,
                         marginPct,
+                        hasValidCost,
                         suggestedNio,
                         suggestedProfitNio,
                       } = row;
@@ -1097,30 +1114,36 @@ export const BatchesPage: React.FC = () => {
                             </span>
                           </div>
 
-                          <div className="p-3 rounded-xl bg-coral-50/50 border border-coral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                            <div className="text-sm">
-                              <span className="text-xs font-bold text-coral-700 block">
-                                Sugerido para ganar {targetMarginPct}%:
-                              </span>
-                              <strong className="text-coral-600 text-base">
-                                {fmtNio(suggestedNio, 0)}
-                              </strong>{' '}
-                              <span className="text-xs text-emerald-700 font-semibold">
-                                (Ganas {fmtNio(suggestedProfitNio, 0)})
-                              </span>
+                          {hasValidCost ? (
+                            <div className="p-3 rounded-xl bg-coral-50/50 border border-coral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                              <div className="text-sm">
+                                <span className="text-xs font-bold text-coral-700 block">
+                                  Sugerido para ganar {targetMarginPct}%:
+                                </span>
+                                <strong className="text-coral-600 text-base">
+                                  {fmtNio(suggestedNio, 0)}
+                                </strong>{' '}
+                                <span className="text-xs text-emerald-700 font-semibold">
+                                  (Ganas {fmtNio(suggestedProfitNio, 0)})
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleApplySingleSuggestedPrice(row)}
+                                className={`w-full sm:w-auto min-h-[44px] px-4 rounded-xl text-xs font-bold shrink-0 text-center ${
+                                  isJustSaved
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'bg-coral-500 text-white'
+                                }`}
+                              >
+                                {isJustSaved ? '¡Aplicado!' : 'Usar este precio'}
+                              </button>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => handleApplySingleSuggestedPrice(row)}
-                              className={`w-full sm:w-auto min-h-[44px] px-4 rounded-xl text-xs font-bold shrink-0 text-center ${
-                                isJustSaved
-                                  ? 'bg-emerald-600 text-white'
-                                  : 'bg-coral-500 text-white'
-                              }`}
-                            >
-                              {isJustSaved ? '¡Aplicado!' : 'Usar este precio'}
-                            </button>
-                          </div>
+                          ) : (
+                            <div className="p-3 rounded-xl bg-nacre-50 border border-nacre-200 text-xs font-semibold text-deepSlate-500">
+                              Sin costo registrado para sugerir precio.
+                            </div>
+                          )}
                         </div>
                       );
                     })}

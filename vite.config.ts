@@ -39,6 +39,7 @@ function supabaseAdminBridgePlugin(supabaseUrl: string, secretKey: string): Plug
         if (respContentType) {
           res.setHeader('Content-Type', respContentType);
         }
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
 
         const respArrayBuffer = await response.arrayBuffer();
         res.end(Buffer.from(respArrayBuffer));
